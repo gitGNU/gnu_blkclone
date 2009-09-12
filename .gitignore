@@ -1,0 +1,5 @@
+# ignore editor backup files (we ARE using version control, RIGHT?)
+*~
+# ignore throwaway program binaries
+a.out
+
