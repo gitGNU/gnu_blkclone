@@ -2,11 +2,11 @@
 #define ECMA_107_H
 
 /* ECMA 107 structures */
-/* taken from ECMA 107 with additional information from Wikipedia */
+/* taken from ECMA 107 with additional information from other sources */
 
 #include <stdint.h>
 
-/* Extended Paramter Block for ECMA-107 compliant volumes */
+/* Extended Parameter Block for ECMA-107 compliant volumes */
 struct ecma107_desc_epb {
   uint8_t  drvno;	// physical drive number
   uint8_t  rsrv_2;	// disk-check-needed flag under WinNT
@@ -17,7 +17,7 @@ struct ecma107_desc_epb {
   uint8_t  code[448];	// boot code area
 } __attribute__((packed));
 
-/* Extended Paramter Block for FAT32 */
+/* Extended Parameter Block for FAT32 */
 struct ecma107_desc_f32 {
   uint32_t spf;		// sectors per FAT
   uint16_t flags;	// "flags" (???)
@@ -35,8 +35,28 @@ struct ecma107_desc_f32 {
   uint8_t  code[420];	// boot code area
 } __attribute__((packed));
 
+/* Extended Parameter Block for NTFS */
+struct ecma107_desc_ntfs {
+  uint8_t  drvno;	// physical drive number
+  uint8_t  current_head;// zero
+  uint8_t  xtnd_sig;	// == 0x80
+  uint8_t  rsrv_2;	// reserved
+  // above four bytes are officially unused
+  int64_t scount64;	// 64-bit sector count
+  int64_t MFTlcn;	// first cluster of $MFT
+  int64_t MFTMlcn;	// first cluster of $MFTMirr
+  int8_t  MFTreclen;	// clusters per MFT record
+  uint8_t  rsrv_3a[3];	// "zero"
+  int8_t  cpib;		// clusters per index block
+  uint8_t  rsrv_3b[3];	// "zero"
+  uint64_t serno;	// volume serial number
+  uint32_t checksum;	// boot sector checksum; generally ignored
+  uint8_t  code[426];	// boot code area
+} __attribute__((packed));
+
 /* (Extended) FDC Descriptor
  *   -- also with FAT32 info from Wikipedia
+ *   -- also with NTFS info extracted from Linux 2.6.24.2 NTFS driver
  */
 
 struct ecma107_desc {	// ECMA 107 filesystem header
@@ -55,8 +75,9 @@ struct ecma107_desc {	// ECMA 107 filesystem header
   uint32_t hscnt;	// count of hidden sectors
   uint32_t scnt;	// number of sectors iff more than 65535
   union {
-    struct ecma107_desc_epb epb;// FAT12/FAT16 Extended Parameter Block
-    struct ecma107_desc_f32 f32;// FAT32 Extended Parameter Block
+    struct ecma107_desc_epb  epb;	// FAT12/FAT16 Extended Parameter Block
+    struct ecma107_desc_f32  f32;	// FAT32 Extended Parameter Block
+    struct ecma107_desc_ntfs ntfs;	// NTFS Extended Parameter Block
     uint8_t pad[474];	// padding to account for boot code in non-EPB case
   };
   uint16_t sig;		// == 0xAA55

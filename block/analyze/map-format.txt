@@ -6,12 +6,15 @@ A block list begins with a version signature line:
 
 The signature is followed by several key-value pairs of the form "Key: Value".
 
+Any line beginning with # is a comment and is ignored.
+
 The keys required for a V1 block list are:
 
     UUID:	  A UUID for this image; used to bind index and data.
     Type:	  The name of the module that produced this extent map.
     BlockSize:	  The number of bytes in a block.
     BlockCount:	  The total number of blocks in the data.
+    BlockRange:	  The total number of blocks the data represents.
 
 The optional keys currently defined are:
 
@@ -23,6 +26,30 @@ After the metadata keys, a marker line introduces the list of extents:
 
 Each extent is stored as "<starting block number>+<length of run in blocks>".
 Only the areas that contain data are listed.
+
+If the length begins with a dot, it is parsed as a fraction, in this form
+ the entry is stored as "<starting block>+.<numerator>/<denominator>".  The
+ denominator must evenly divide into the block size or integer rounding
+ will cause Murphy to strike.  The numerator may not exceed the
+ denominator.  If a particular run of data is fractionally longer than a
+ block, store two extents, one to cover the whole blocks and a second to
+ cover the fractional last block.  This syntax allows to represent the
+ copying of a partial block, but should be avoided unless required, since
+ such copies are less efficient and waste space in the image data stream,
+ where each partial block is stored as a full block padded out to BlockSize
+ with zero.  Do not use this thinking to "be more efficient and omit slack
+ space from the image".
+
+Such a partial block may exceed the range declared by BlockRange, although
+ this usage may result in strange user interface behavior.
+
+This odd feature was added to support NTFS, which is otherwise good about
+ adhering to a fixed block size and alignment, except for a backup of the
+ volume boot record stored on the last sector of the partition where the
+ rest of the associated block doesn't exist.
+
+There is no similar mechanism for copying unaligned blocks; all extents
+ must begin on aligned block boundaries.
 
 The end of the list has a corresponding marker line:
 
