@@ -1,0 +1,30 @@
+A block list is one of the allowed types of index files; it is in plain text.
+
+A block list begins with a version signature line:
+
+    BLKCLONE BLOCK LIST V1
+
+The signature is followed by several key-value pairs of the form "Key: Value".
+
+The keys required for a V1 block list are:
+
+    UUID:	  A UUID for this image; used to bind index and data.
+    Type:	  The name of the module that produced this extent map.
+    BlockSize:	  The number of bytes in a block.
+    BlockCount:	  The total number of blocks in the data.
+
+The optional keys currently defined are:
+
+    FsType:	  The filesystem type, if the module handles multiple types
+
+After the metadata keys, a marker line introduces the list of extents:
+
+    BEGIN BLOCK LIST
+
+Each extent is stored as "<starting block number>+<length of run in blocks>".
+Only the areas that contain data are listed.
+
+The end of the list has a corresponding marker line:
+
+    END BLOCK LIST
+

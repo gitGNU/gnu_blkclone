@@ -1,0 +1,28 @@
+README for block device fast clone tool
+=======================================
+
+The blkclone toolkit enables efficient imaging of filesystems under Linux.
+
+These tools support block-level imaging of FAT (TODO) and NTFS (TODO)
+filesystems and a heuristic method of constructing block-level images that
+simply omits all blocks containing only zero from the image data.
+
+(Heuristic images can only be restored using "nuke and pave" method that
+writes zeroes to all unused blocks.  Zeroing unused space is optional for
+other block-level images.)
+[[TODO: implement heuristic imaging]]
+
+Additionally, for filesystems which Linux fully supports, these tools use
+cpio(1) to perform file-level imaging.  Restoring a cpio-based image to a
+blank disk requires restoring partitions, running the appropriate mkfs(8),
+then mounting the new filesystem and unpacking the cpio archive into place.
+[[TODO: implement file-level imaging]]
+
+Each partition image consists of an index file and a data file.  Since
+these files are accessed sequentially, they may be filtered through
+external compression tools.
+
+Disk partitions are handled separately; a full disk image has an additional
+index file (listing partitions) and an optional block-level image for
+non-partitioned space.
+[[TODO: implement disk-scope imaging]]
