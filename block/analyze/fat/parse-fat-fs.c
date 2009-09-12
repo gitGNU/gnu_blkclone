@@ -1,7 +1,6 @@
 /*
  *  Analyze a FAT filesystem to generate a block map for sparse imaging.
  *
- *  This code fully understands the parts of the FAT filesystem it examines.
  */
 
 #define _GNU_SOURCE
