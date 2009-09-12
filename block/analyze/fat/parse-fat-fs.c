@@ -18,7 +18,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "ecma-107.h"
+#include "analyze/ecma-107.h"
 
 /* It appears that the ONLY aligned block in a FAT filesystem is the
  *  hardware sector.  In other words, the cluster size means nothing beyond
