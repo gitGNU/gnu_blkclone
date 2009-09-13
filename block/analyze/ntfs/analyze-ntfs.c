@@ -6,7 +6,13 @@
 
 #define _GNU_SOURCE
 
-/* PORTABILITY NOTE: the boot sector handling assumes a little-endian CPU */
+/* PORTABILITY NOTE: the boot sector handling assumes a little-endian CPU
+ *			This isn't as big a problem as it could be, since
+ *			 only NT-based Windows uses NTFS, it only supports
+ *			 little-endian processors, and this tool is designed
+ *			 to run from a boot disk or network-boot environment
+ *			 on the machine where the imaged system will run.
+ */
 
 #include <errno.h>
 #include <stdio.h>
