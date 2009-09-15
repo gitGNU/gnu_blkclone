@@ -2,4 +2,5 @@
 *~
 # ignore throwaway program binaries
 a.out
-
+# ignore compiled objects
+*.[oa]
