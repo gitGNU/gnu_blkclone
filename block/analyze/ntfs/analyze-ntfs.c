@@ -62,8 +62,11 @@ int NTFS_get_info(struct NTFS_info * ctx, FILE * boot)
 /*
  * Each bit in the bitmap represents one cluster;
  *  the cluster is allocated iff the bit is set
+ * BOUND is the highest cluster number,
+ *  apparently, it is possible for the bitmap to show clusters as "in-use"
+ *  that are "off the end" of the volume
  */
-uint64_t NTFS_count_used_blocks(FILE * bitmap)
+uint64_t NTFS_count_used_blocks(FILE * bitmap, unsigned long long int bound)
 {
   unsigned long long int cluster = 0; /*  index  */
   unsigned long long int count   = 0; /* counter */
@@ -72,13 +75,14 @@ uint64_t NTFS_count_used_blocks(FILE * bitmap)
 
   rewind(bitmap);
 
-  while ((byte = getc(bitmap)) != EOF)
-    for (bcnt=8; bcnt; bcnt--, byte>>=1, cluster++)
+  while (((byte = getc(bitmap)) != EOF) && cluster <= bound)
+    for (bcnt=8; bcnt && cluster <= bound; bcnt--, byte>>=1, cluster++)
       if (byte & 1) count++;
 
   return count;
 }
-void emit_NTFS_extent_list(FILE * output, FILE * bitmap)
+void emit_NTFS_extent_list(FILE * output, FILE * bitmap,
+			   unsigned long long int bound)
 {
   unsigned long long int cluster = 0; /* counter */
   unsigned long long int start = 0;   /* start of current extent */
@@ -88,8 +92,8 @@ void emit_NTFS_extent_list(FILE * output, FILE * bitmap)
 
   rewind(bitmap);
 
-  while ((byte = getc(bitmap)) != EOF) {
-    for (bcnt=8; bcnt; bcnt--, byte>>=1, cluster++)
+  while (((byte = getc(bitmap)) != EOF) && cluster <= bound)
+    for (bcnt=8; bcnt && cluster <= bound; bcnt--, byte>>=1, cluster++)
       switch (state) {
       case FREE:
 	if (byte & 1) { start = cluster; state = ALLOC; }
@@ -101,7 +105,6 @@ void emit_NTFS_extent_list(FILE * output, FILE * bitmap)
 	}
 	break;
       }
-  }
 }
 
 void usage(char * name)
@@ -138,7 +141,7 @@ int main(int argc, char ** argv)
   if (ret < 0) fatal("failed to read boot record");
   fclose(boot);
 
-  ctx.dccount = NTFS_count_used_blocks(bitmap);
+  ctx.dccount = NTFS_count_used_blocks(bitmap,ctx.ccount);
 
   printf("Type:\tNTFS\n");
 
@@ -150,7 +153,7 @@ int main(int argc, char ** argv)
   printf("BlockRange:\t%lld\n",ctx.ccount);
 
   printf("BEGIN BLOCK LIST\n");
-  emit_NTFS_extent_list(stdout,bitmap);
+  emit_NTFS_extent_list(stdout,bitmap,ctx.ccount);
   //also catch the backup boot record
   fprintf(stdout,"%lld+.1/%d\n",ctx.ccount,ctx.spc);
   printf("END BLOCK LIST\n");
