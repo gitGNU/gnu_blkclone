@@ -105,6 +105,8 @@ void emit_NTFS_extent_list(FILE * output, FILE * bitmap,
 	}
 	break;
       }
+  if (state == ALLOC) //emit last run
+    fprintf(output,"%lld+%lld\n",start,cluster-start);
 }
 
 void usage(char * name)

@@ -257,6 +257,8 @@ void emit_FAT_blocklist(FILE * out,struct FAT_context * ctx)
     fprintf(stderr,"FAT filesystem not one of FAT12/FAT16/FAT32\n");
     return;
   }
+  if (state == ALLOC) //emit last run
+    fprintf(out,"%lld+%lld\n",start,block-start);
 }
 
 void usage(char * name)
