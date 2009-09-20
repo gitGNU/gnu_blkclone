@@ -1,0 +1,30 @@
+The data stream for an image is simply a run of blocks containing data.
+
+The associated index provides the mapping to blocks on the physical device.
+
+The minimum block size for a v1 data stream is 64 bytes.
+
+All structures within a stream are block-aligned.  The block size is read
+from the index.
+
+The first block contains a header instead of data:
+
+    CHAR[16]	"BLKCLONEDATA\r\n\004\000"
+		  (The string "BLKCLONEDATA" followed by
+		   ASCII CR, LF, EOT, and NUL.)
+    UINT8[16]	UUID for this image;
+		 used to ensure that the correct index is used
+    UINT8	version number; 1 for v1 data format
+
+
+The rest of the header block is padded with zero out to the block size
+listed in the index.  Note that entire blocks are read at once, so using a
+very large block size will cause problems.
+
+The UUID is stored as a sequence of bytes in the same order as the UUID is
+written, ignoring the hyphens.  (This avoids portability issues.)
+
+After the header, data blocks are recorded literally in the order in which
+the index refers to their contents.  A partial block is stored at the
+beginning of its "slot" in the image stream and padded out to the block
+size with zero.
