@@ -38,7 +38,7 @@ struct NTFS_info {
   uint32_t spc;		// sectors per cluster
 };
 
-int NTFS_get_info(struct NTFS_info * ctx, FILE * boot)
+static int NTFS_get_info(struct NTFS_info * ctx, FILE * boot)
 {
   struct ecma107_desc brec = {{0},{0},0};
 
@@ -66,7 +66,7 @@ int NTFS_get_info(struct NTFS_info * ctx, FILE * boot)
  *  apparently, it is possible for the bitmap to show clusters as "in-use"
  *  that are "off the end" of the volume
  */
-uint64_t NTFS_count_used_blocks(FILE * bitmap, unsigned long long int bound)
+static uint64_t NTFS_count_used_blocks(FILE * bitmap, unsigned long long int bound)
 {
   unsigned long long int cluster = 0; /*  index  */
   unsigned long long int count   = 0; /* counter */
@@ -81,8 +81,8 @@ uint64_t NTFS_count_used_blocks(FILE * bitmap, unsigned long long int bound)
 
   return count;
 }
-void emit_NTFS_extent_list(FILE * output, FILE * bitmap,
-			   unsigned long long int bound)
+static void emit_NTFS_extent_list(FILE * output, FILE * bitmap,
+				  unsigned long long int bound)
 {
   unsigned long long int cluster = 0; /* counter */
   unsigned long long int start = 0;   /* start of current extent */
@@ -109,13 +109,13 @@ void emit_NTFS_extent_list(FILE * output, FILE * bitmap,
     fprintf(output,"%lld+%lld\n",start,cluster-start);
 }
 
-void usage(char * name)
+static void usage(char * name)
 {
   fprintf(stderr,"%s: <mountpoint of NTFS filesystem>\n",name);
   exit(1);
 }
 
-void fatal(char * msg)
+static inline void fatal(char * msg)
 { perror(msg); exit (1); }
 
 int main(int argc, char ** argv)

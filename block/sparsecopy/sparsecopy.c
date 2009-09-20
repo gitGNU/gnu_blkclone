@@ -56,7 +56,8 @@ struct progress {
   int tgt_baton;	// right baton position
 };
 
-static void fatal(char * msg);
+static inline void fatal(char * msg)
+{ perror(msg); exit (1); }
 
 static int do_export(struct keylist * args,
 		     struct imaging_context * ctx, FILE * map);
@@ -359,9 +360,6 @@ static void usage(char * name)
 	  name);
   exit(1);
 }
-
-static void fatal(char * msg)
-{ perror(msg); exit (1); }
 
 #include <time.h>
 

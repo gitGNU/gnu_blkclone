@@ -44,7 +44,7 @@ struct FAT_context {
 // the read pointer on FS must point to the boot record
 // returns -error code on error
 // on success, FS is positioned at first sector of first FAT
-int FAT_init(struct FAT_context * ctx, FILE * fs)
+static int FAT_init(struct FAT_context * ctx, FILE * fs)
 {
   struct ecma107_desc brec = {{0},{0},0};
 
@@ -100,7 +100,7 @@ int FAT_init(struct FAT_context * ctx, FILE * fs)
   return 0; //success
 }
 
-uint32_t FAT_count_used_sectors(struct FAT_context * ctx)
+static uint32_t FAT_count_used_sectors(struct FAT_context * ctx)
 {
   uint32_t count = 0;
   uint32_t block = 0;
@@ -160,7 +160,7 @@ uint32_t FAT_count_used_sectors(struct FAT_context * ctx)
   return count;
 }
 
-void emit_FAT_blocklist(FILE * out,struct FAT_context * ctx)
+static void emit_FAT_blocklist(FILE * out,struct FAT_context * ctx)
 {
   uint64_t block = 0; /* counter */
   uint64_t start = 0; /* first block in current extent */
@@ -261,13 +261,13 @@ void emit_FAT_blocklist(FILE * out,struct FAT_context * ctx)
     fprintf(out,"%lld+%lld\n",start,block-start);
 }
 
-void usage(char * name)
+static void usage(char * name)
 {
   fprintf(stderr,"%s: <FAT filesystem image>\n",name);
   exit(1);
 }
 
-void fatal(char * msg)
+static inline void fatal(char * msg)
 { perror(msg); exit (1); }
 
 int main(int argc, char ** argv)
