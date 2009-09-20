@@ -190,6 +190,7 @@ static int do_export(struct keylist * args,
       }
     } while (!(ret<0));
   }
+  fclose(image); fclose(source);
   return 0;
 }
 
@@ -308,6 +309,7 @@ static int do_import(struct keylist * args,
       }
     } while (!(ret<0));
   }
+  fclose(image); fclose(target);
   return 0;
 }
 
@@ -361,14 +363,13 @@ static void usage(char * name)
   exit(1);
 }
 
-#include <time.h>
-
 int main(int argc, char ** argv)
 {
   struct keylist * args = NULL;
   struct keylist * map_info = NULL;
   FILE * map = NULL;
   struct imaging_context ctx = {0};
+  int ret = 1;
 
   args = parse_args(argc, argv);
 
@@ -430,23 +431,14 @@ int main(int argc, char ** argv)
 
   for (mode_ptr=mode_list; mode_ptr->name; mode_ptr++)
     if (keylist_get(args,mode_ptr->name)) break;
-  if (mode_ptr->name) (mode_ptr->func)(args, &ctx, map);
+  if (mode_ptr->name)
+    ret = (mode_ptr->func)(args, &ctx, map);
 
-#if 0
-  { struct timespec d={ .tv_nsec = (100000 * 93)},t={0};
-    struct progress p = {0};
-    int i;
-    for (i=0;i<1000;i++) {
-      p.src_pct=i/10;
-      p.src_pct_f=i%10;
-      if (!(i&0x4)) p.src_baton++;
-      p.tgt_baton = i;
-      show_progress(stdout,&p);
-      nanosleep(&d,&t);
-    }
-  }
-#endif
+  fclose(map);
+  free(ctx.block);
+  keylist_destroy(args);
+  keylist_destroy(map_info);
 
-  return 0;
+  return ret;
 
 }
