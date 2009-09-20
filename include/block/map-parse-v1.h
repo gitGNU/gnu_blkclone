@@ -18,7 +18,7 @@ struct v1_extent {
 
 /* read a v1 header from IN and return a keylist
  *  returns NULL on failure
- *  the returned value must be deallocated with keylist_destory
+ *  the returned value must be deallocated with keylist_destroy
  *  leaves IN positioned at first block list entry
  */
 struct keylist * map_v1_parsekeys(FILE * in);
