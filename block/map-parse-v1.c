@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "map-parse-v1.h"
+#include "block/map-parse-v1.h"
 
 struct keylist * map_v1_parsekeys(FILE * in)
 {
