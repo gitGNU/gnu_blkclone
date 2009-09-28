@@ -268,6 +268,8 @@ static void emit_FAT_blocklist(FILE * out,struct FAT_context * ctx)
     break;
   case 32:
     {
+      fprintf(stderr,"FAT32 support not implemented yet\n");
+      return;
     }
     break;
   default:
