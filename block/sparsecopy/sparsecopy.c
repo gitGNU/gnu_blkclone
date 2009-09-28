@@ -54,6 +54,8 @@ struct progress {
   int tgt_pct_f;	// % written to target (fractional)
   int src_baton;	// left baton position
   int tgt_baton;	// right baton position
+  int src_baton_;	// left baton position as of last update
+  int tgt_baton_;	// right baton position as of last update
 };
 
 static inline void fatal(char * msg)
@@ -156,7 +158,11 @@ static int do_export(struct keylist * args,
       p.src_baton = ctx->diskcnt >> 8;
       p.tgt_baton = ctx->imagepos >> 8;
 
-      show_progress(stderr, &p);
+      if ((p.src_baton != p.src_baton_)||(p.tgt_baton != p.tgt_baton_)) {
+	p.src_baton_ = p.src_baton;
+	p.tgt_baton_ = p.tgt_baton;
+	show_progress(stderr, &p);
+      }
       //      if (!((ctx->diskcnt >> 11) & 3)) fdatasync(fileno(image));
     }
 
@@ -189,6 +195,7 @@ static int do_export(struct keylist * args,
 	progress();
       }
     } while (!(ret<0));
+    show_progress(stderr, &p); // force to show final progress
   }
   fclose(image); fclose(source);
   return 0;
@@ -273,7 +280,11 @@ static int do_import(struct keylist * args,
       p.src_baton = ctx->diskcnt >> 8;
       p.tgt_baton = ctx->imagepos >> 8;
 
-      show_progress(stderr, &p);
+      if ((p.src_baton != p.src_baton_)||(p.tgt_baton != p.tgt_baton_)) {
+	p.src_baton_ = p.src_baton;
+	p.tgt_baton_ = p.tgt_baton;
+	show_progress(stderr, &p);
+      }
       //      if (!((ctx->diskcnt >> 11) & 3)) fdatasync(fileno(target));
     }
 
@@ -308,6 +319,7 @@ static int do_import(struct keylist * args,
 	progress();
       }
     } while (!(ret<0));
+    show_progress(stderr, &p); // force to show final progress
   }
   fclose(image); fclose(target);
   return 0;
