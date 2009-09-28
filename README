@@ -26,3 +26,6 @@ Disk partitions are handled separately; a full disk image has an additional
 index file (listing partitions) and an optional block-level image for
 non-partitioned space.
 [[TODO: implement disk-scope imaging]]
+
+The blkclone toolkit is released mostly under GPLv2 or later, see file
+COPYING for details.  Some trivial or non-creative headers are public domain.

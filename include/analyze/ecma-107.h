@@ -4,6 +4,11 @@
 /* ECMA 107 structures */
 /* taken from ECMA 107 with additional information from other sources */
 
+/* This file contains minimal, if any, original work, and exists
+ *  for interoperability purposes.
+ * I, Jacob Bachmeyer, therefore release it into the public domain.
+ */
+
 #include <stdint.h>
 
 /* Extended Parameter Block for ECMA-107 compliant volumes */
