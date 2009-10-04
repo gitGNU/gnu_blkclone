@@ -28,3 +28,9 @@ After the header, data blocks are recorded literally in the order in which
 the index refers to their contents.  A partial block is stored at the
 beginning of its "slot" in the image stream and padded out to the block
 size with zero.
+
+--------
+Copyright (C) 2009 Jacob Bachmeyer
+Copying and distribution of this file, with or without modification, are
+permitted in any medium without royalty provided the copyright notice and this
+notice are preserved.  This file is offered as-is, without any warranty.
