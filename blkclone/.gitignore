@@ -1,0 +1,3 @@
+# ignore the final binary and extra files produced while linking it
+/blkclone
+/*.blob-?.*

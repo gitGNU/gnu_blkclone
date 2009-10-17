@@ -37,6 +37,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "multicall.h"
+
 /* Amazingly enough, NTFS filesystems have a bootsector that includes
  *  a BIOS parameter block, this info gives us the cluster size.
  */
@@ -136,7 +138,9 @@ static void usage(char * name)
 static inline void fatal(char * msg)
 { perror(msg); exit (1); }
 
-int main(int argc, char ** argv)
+DECLARE_MULTICALL_TABLE(main);
+//int main(int argc, char ** argv)
+SUBCALL_MAIN(main, analyze_ntfs, int argc, char ** argv)
 {
   FILE * boot = NULL;
   FILE * bitmap = NULL;

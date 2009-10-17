@@ -44,6 +44,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+#include "multicall.h"
+
 #include "uuid.h"
 #include "keylist.h"
 #include "block/map-parse-v1.h"
@@ -394,7 +396,9 @@ static void usage(char * name)
   exit(1);
 }
 
-int main(int argc, char ** argv)
+DECLARE_MULTICALL_TABLE(main);
+//int main(int argc, char ** argv)
+SUBCALL_MAIN(main, sparsecopy, int argc, char ** argv)
 {
   struct keylist * args = NULL;
   struct keylist * map_info = NULL;

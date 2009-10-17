@@ -4,3 +4,5 @@
 a.out
 # ignore compiled objects
 *.[oa]
+# ignore link maps
+*.map

@@ -34,6 +34,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "multicall.h"
+
 #include "analyze/ecma-107.h"
 
 /* It appears that the ONLY aligned block in a FAT filesystem is the
@@ -289,7 +291,9 @@ static void usage(char * name)
 static inline void fatal(char * msg)
 { perror(msg); exit (1); }
 
-int main(int argc, char ** argv)
+DECLARE_MULTICALL_TABLE(main);
+//int main(int argc, char ** argv)
+SUBCALL_MAIN(main, analyze_fat, int argc, char ** argv)
 {
   FILE * fs = NULL;
   struct FAT_context ctx = { 0 };

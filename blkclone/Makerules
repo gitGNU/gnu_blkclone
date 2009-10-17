@@ -1,0 +1,111 @@
+# Build rules for blkclone
+
+#
+# Copyright (C) 2009 Jacob Bachmeyer
+#
+# This file is part of blkclone.
+#
+# The blkclone tools are free software; you can redistribute and/or modify
+# them under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+#
+# All makefiles search up the directory tree and include this file.
+# The final multicall binary appears at the same tree level as this file.
+#
+# Each subdirectory produces a single relocatable object in its parent directory.
+#
+# The following make variables should be set in makefiles:
+#
+#    MKRULE	the relative path to this file;
+#		  MUST contain only .. path elements
+#    OBJS	object files this directory contributes to the final binary
+#    SUBDIRS	subdirectories of this directory;
+#		  (objects produced by subdirectories are
+#		    automatically included in OBJS)
+#    PROG	name of final multicall binary
+# ...
+#
+
+#
+# PORTABILITY NOTE:  Only GNU make is supported;
+#			 if a different make works, count yourself lucky.
+
+$(info Makerules found as ${MKRULE})
+
+OBJCOPY=objcopy
+
+TOP:=${MKRULE:%/Makerules=%}
+# magic to extract dirpath from toplevel
+THIS_SUBDIR:=$(shell pwd | sed -e 's!^.*\('$$(echo ${MKRULE} | tr -dc '/' | sed -e 's!/!/[^/]\\+!g')'\)$$!\1!' -e 's!^/!!')
+THIS_SUBDIR_NAME:=$(shell echo ${THIS_SUBDIR} | sed -e 's!^.*/!!g')
+
+CFLAGS += -I${TOP}/include
+
+OBJS += ${SUBDIRS:%=%.blob.o}
+
+ifeq (${MKRULE},Makerules)
+$(info Makerules read from top-level)
+TOP:=.
+
+# build final binary
+
+# TODO: add table-building logic
+
+${PROG}: ${PROG}.blob-2.o
+	${CC} $^ -o $@
+
+${PROG}.blob-2.o: ${PROG}.blob-1.o ${PROG}.blob-2.x
+	${LD} ${LDFLAGS} -r -T ${PROG}.blob-2.x ${OBJS} -o $@ -M > ${PROG}.blob-2.map
+
+${PROG}.blob-2.x: ${PROG}.blob-1.tablist Makerules
+	echo SECTIONS > $@
+	echo { >> $@
+	echo .rodata 0 : >> $@
+	echo { >> $@
+	echo '*(.rodata)' >> $@
+	echo '. = ALIGN(0x10);' >> $@
+	tr -d '\000' < ${PROG}.blob-1.tablist | sed -e 's/--\(.*\)--RW--.*//' \
+	    -e 's/--\(.*\)--RO--.*/linktable__i__\1_start = .;\n*(.tab.\1)\nlinktable__i__\1_end = .;/' \
+	 >> $@
+	echo } >> $@
+	echo .data 0 : >> $@
+	echo { >> $@
+	echo '*(.data)' >> $@
+	echo '. = ALIGN(0x10);' >> $@
+	tr -d '\000' < ${PROG}.blob-1.tablist | sed -e 's/--\(.*\)--RO--.*//' \
+	    -e 's/--\(.*\)--RW--.*/linktable__i__\1_start = .;\n*(.tab.\1)\nlinktable__i__\1_end = .;/' \
+	 >> $@
+	echo } >> $@
+	echo } >> $@
+
+%.tablist: %.o
+	${OBJCOPY} -j .tab._meta_ -O binary $^ $@
+
+${PROG}.blob-1.o: ${OBJS}
+	${LD} ${LDFLAGS} -r ${OBJS} -o $@ -M > ${PROG}.blob-1.map
+
+else
+$(info Makerules read from subdir ${THIS_SUBDIR} ; $(basename ${THIS_SUBDIR_NAME}))
+
+# build object for this directory
+
+../${THIS_SUBDIR_NAME}.blob.o: ${OBJS}
+	${LD} ${LDFLAGS} -r ${OBJS} -o $@ -M > ../${THIS_SUBDIR_NAME}.blob.map
+
+endif
+
+# recurse into subdirs
+%.blob.o: $(wildcard %/*)
+	${MAKE} -C $*
+
