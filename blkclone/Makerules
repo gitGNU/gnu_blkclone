@@ -76,7 +76,7 @@ ${PROG}.blob-2.x: ${PROG}.blob-1.tablist Makerules
 	echo '*(.rodata)' >> $@
 	echo '. = ALIGN(0x10);' >> $@
 	tr -d '\000' < ${PROG}.blob-1.tablist | sed -e 's/--\(.*\)--RW--.*//' \
-	    -e 's/--\(.*\)--RO--.*/linktable__i__\1_start = .;\n*(.tab.\1)\nlinktable__i__\1_end = .;/' \
+	    -e 's/--\(.*\)--RO--.*/ldtable__i__\1_start = .;\n*(.tab.\1)\nldtable__i__\1_end = .;/' \
 	 >> $@
 	echo } >> $@
 	echo .data 0 : >> $@
@@ -84,7 +84,7 @@ ${PROG}.blob-2.x: ${PROG}.blob-1.tablist Makerules
 	echo '*(.data)' >> $@
 	echo '. = ALIGN(0x10);' >> $@
 	tr -d '\000' < ${PROG}.blob-1.tablist | sed -e 's/--\(.*\)--RO--.*//' \
-	    -e 's/--\(.*\)--RW--.*/linktable__i__\1_start = .;\n*(.tab.\1)\nlinktable__i__\1_end = .;/' \
+	    -e 's/--\(.*\)--RW--.*/ldtable__i__\1_start = .;\n*(.tab.\1)\nldtable__i__\1_end = .;/' \
 	 >> $@
 	echo } >> $@
 	echo } >> $@

@@ -1,5 +1,5 @@
-#ifndef LINKTABLE_H
-#define LINKTABLE_H
+#ifndef LDTABLE_H
+#define LDTABLE_H
 
 /* Linker-assembled tables
  * Copyright (C) 2009 Jacob Bachmeyer
@@ -27,41 +27,41 @@
  *  This probably requires GNU ld.
  */
 
-/* LINKTABLE_START(name)
+/* LDTABLE_START(name)
  *  Macro:  name of the linker-provided symbol that refers to the first entry
  *		of a linker-assembled table
- * LINKTABLE_END(name)
+ * LDTABLE_END(name)
  *  Macro:  name of the linker-provided symbol that refers to the location
  *		just after the last entry of a linker-assembled table
- * LINKTABLE_CELLTYPE(name)
+ * LDTABLE_CELLTYPE(name)
  *  Macro:  name of the type alias for an entry in the given table
- * LINKTABLE_CELLNAME(name, nonce)
+ * LDTABLE_CELLNAME(name, nonce)
  *  Macro:  name for a cell in the given table with the given nonce
  */
-#define LINKTABLE_START(name)		linktable__i__ ## name ## _start
-#define LINKTABLE_END(name)		linktable__i__ ## name ## _end
-#define LINKTABLE_CELLTYPE(name)	linktable__t__ ## name ## _cell_t
-#define LINKTABLE_CELLNAME(name, nonce) linktable__d__ ## name ## _ ## nonce
+#define LDTABLE_START(name)		ldtable__i__ ## name ## _start
+#define LDTABLE_END(name)		ldtable__i__ ## name ## _end
+#define LDTABLE_CELLTYPE(name)		ldtable__t__ ## name ## _cell_t
+#define LDTABLE_CELLNAME(name, nonce)	ldtable__d__ ## name ## _ ## nonce
 
-/* LINKTABLE_ITERATOR(name, iterator)
+/* LDTABLE_ITERATOR(name, iterator)
  *  Macro:  declare an iteration variable for the given table
- * LINKTABLE_FOREACH(name, iterator)
+ * LDTABLE_FOREACH(name, iterator)
  *  Macro:  loop header for iterating over the given table using ITERATOR
  *		ITERATOR is a pointer to a cell in the table
  */
-#define LINKTABLE_ITERATOR(name, varname) LINKTABLE_CELLTYPE(name) * varname
-#define LINKTABLE_FOREACH(name, i)    \
-  for ( i = &LINKTABLE_START(name); i < &LINKTABLE_END(name); i++ )
+#define LDTABLE_ITERATOR(name, varname) LDTABLE_CELLTYPE(name) * varname
+#define LDTABLE_FOREACH(name, i)    \
+  for ( i = &LDTABLE_START(name); i < &LDTABLE_END(name); i++ )
 
 
-/* AS_LINKTABLE_CELL(name)
+/* AS_LDTABLE_CELL(name)
  *  Macro:  magic words to put data where it will be picked up into
  *		a linker-assembled table
  */
-#define AS_LINKTABLE_CELL(name)  \
+#define AS_LDTABLE_CELL(name)  \
   __attribute__((section(".tab." #name), used))
 
-/* DECLARE_LINKTABLE(name,entry_type)
+/* DECLARE_LDTABLE(name,entry_type)
  *  Macro:  declare a linker-assembled table
  *   This macro provides the declarations to make a linker-assembled table
  *    visible in the current module.
@@ -69,12 +69,12 @@
  *   ENTRY_TYPE is a C type.
  *   It is expected to be used in headers.
  */
-#define DECLARE_LINKTABLE(name,entry_type)			\
-  typedef entry_type LINKTABLE_CELLTYPE(name);			 \
-  extern LINKTABLE_CELLTYPE(name) LINKTABLE_START(name);	  \
-  extern LINKTABLE_CELLTYPE(name) LINKTABLE_END(name)		   \
+#define DECLARE_LDTABLE(name,entry_type)			\
+  typedef entry_type LDTABLE_CELLTYPE(name);			 \
+  extern LDTABLE_CELLTYPE(name) LDTABLE_START(name);		  \
+  extern LDTABLE_CELLTYPE(name) LDTABLE_END(name)		   \
 
-/* REGISTER_LINKTABLE(name)
+/* REGISTER_LDTABLE(name)
  *  Macro:  make a linker-assembled table visible to the build process
  *   This macro inserts an entry into a special linker-assembled table
  *    used by the build system.
@@ -82,11 +82,11 @@
  *    be used once, in the module that "owns" the given table.
  *   This macro establishes a read-only table.
  */
-#define REGISTER_LINKTABLE(name)			       \
-  static char LINKTABLE_CELLNAME(_meta_, name) []		\
-       AS_LINKTABLE_CELL(_meta_) = { "--" #name "--RO--\n"}
+#define REGISTER_LDTABLE(name)			       \
+  static char LDTABLE_CELLNAME(_meta_, name) []		\
+       AS_LDTABLE_CELL(_meta_) = { "--" #name "--RO--\n"}
 
-/* REGISTER_LINKTABLE_WRITABLE(name)
+/* REGISTER_LDTABLE_WRITABLE(name)
  *  Macro:  make a linker-assembled table visible to the build process
  *   This macro inserts an entry into a special linker-assembled table
  *    used by the build system.
@@ -94,26 +94,26 @@
  *    be used once, in the module that "owns" the given table.
  *   This macro establishes a table that can be changed at runtime.
  */
-#define REGISTER_LINKTABLE_WRITABLE(name)		       \
-  static char LINKTABLE_CELLNAME(_meta_, name) []		\
-       AS_LINKTABLE_CELL(_meta_) = { "--" #name "--RW--\n" }
+#define REGISTER_LDTABLE_WRITABLE(name)		       \
+  static char LDTABLE_CELLNAME(_meta_, name) []		\
+       AS_LDTABLE_CELL(_meta_) = { "--" #name "--RW--\n" }
 
-/* MAKE_LINKTABLE_ENTRY(name, nonce)
+/* MAKE_LDTABLE_ENTRY(name, nonce)
  *  Macro:  make an entry in a linker-assembled table
  *   NAME is the name of the table to which to add an entry
  *   NONCE is an extra fragment to avoid symbol-name collisions
  *   This macro expands to a declaration and should be followed
  *    by a static initializer.
  */
-#define MAKE_LINKTABLE_ENTRY(name, nonce) \
-  static LINKTABLE_CELLTYPE(name)	   \
-    LINKTABLE_CELLNAME(name, nonce)	    \
-       AS_LINKTABLE_CELL(name)
+#define MAKE_LDTABLE_ENTRY(name, nonce) \
+  static LDTABLE_CELLTYPE(name)		 \
+   LDTABLE_CELLNAME(name, nonce)	  \
+       AS_LDTABLE_CELL(name)
 
-struct linktable_metatable_cell {
+struct ldtable_metatable_cell {
   char name[0];
 };
 
-DECLARE_LINKTABLE(_meta_, struct linktable_metatable_cell);
+DECLARE_LDTABLE(_meta_, struct ldtable_metatable_cell);
 
 #endif

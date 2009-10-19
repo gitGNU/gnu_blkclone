@@ -35,17 +35,17 @@ REGISTER_MULTICALL_TABLE(main);
 
 int main(int argc, char ** argv)
 {
-  LINKTABLE_ITERATOR(MULTICALL_LINKTABLE_NAME(main), i);
+  LDTABLE_ITERATOR(MULTICALL_LDTABLE_NAME(main), i);
 
-  LINKTABLE_FOREACH(MULTICALL_LINKTABLE_NAME(main), i)
+  LDTABLE_FOREACH(MULTICALL_LDTABLE_NAME(main), i)
     if (!strcmp(argv[0],i->name)) return i->func(argc, argv);
 
   if (argc>1) {
-    LINKTABLE_FOREACH(MULTICALL_LINKTABLE_NAME(main), i)
+    LDTABLE_FOREACH(MULTICALL_LDTABLE_NAME(main), i)
       if (!strcmp(argv[1],i->name)) return i->func(argc-1, argv+1);
   } else {
     puts("Subprograms available in this multicall binary:");
-    LINKTABLE_FOREACH(MULTICALL_LINKTABLE_NAME(main), i)
+    LDTABLE_FOREACH(MULTICALL_LDTABLE_NAME(main), i)
       puts(i->name);
   }
 
