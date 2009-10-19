@@ -54,6 +54,8 @@ CFLAGS += -I${TOP}/include
 
 OBJS += ${SUBDIRS:%=%.blob.o}
 
+.PHONY: clean
+
 ifeq (${MKRULE},Makerules)
 $(info Makerules read from top-level)
 TOP:=.
@@ -95,6 +97,9 @@ ${PROG}.blob-2.x: ${PROG}.blob-1.tablist Makerules
 ${PROG}.blob-1.o: ${OBJS}
 	${LD} ${LDFLAGS} -r ${OBJS} -o $@ -M > ${PROG}.blob-1.map
 
+clean::
+	rm -f ${PROG} ${PROG}.blob-{1.{o,map,tablist},2.{o,map,x}}
+
 else
 $(info Makerules read from subdir ${THIS_SUBDIR} ; $(basename ${THIS_SUBDIR_NAME}))
 
@@ -109,3 +114,14 @@ endif
 %.blob.o: $(wildcard %/*)
 	${MAKE} -C $*
 
+# clean this directory
+clean::
+	rm -f ${OBJS} ${SUBDIRS:%=%.blob.map}
+
+ifneq (${SUBDIRS},)
+# clean subdirs
+clean::
+	(for subdir in ${SUBDIRS}; do ${MAKE} -C $$subdir clean; done)
+endif
+
+#EOF
