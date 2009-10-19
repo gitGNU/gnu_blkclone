@@ -33,15 +33,12 @@
 #    SUBDIRS	subdirectories of this directory;
 #		  (objects produced by subdirectories are
 #		    automatically included in OBJS)
-#    PROG	name of final multicall binary
-# ...
+#    PROG	name of final multicall binary (only used in top-level)
 #
 
 #
 # PORTABILITY NOTE:  Only GNU make is supported;
 #			 if a different make works, count yourself lucky.
-
-$(info Makerules found as ${MKRULE})
 
 OBJCOPY=objcopy
 
@@ -57,12 +54,8 @@ OBJS += ${SUBDIRS:%=%.blob.o}
 .PHONY: clean
 
 ifeq (${MKRULE},Makerules)
-$(info Makerules read from top-level)
-TOP:=.
-
 # build final binary
-
-# TODO: add table-building logic
+TOP:=.
 
 ${PROG}: ${PROG}.blob-2.o
 	${CC} $^ -o $@
@@ -101,8 +94,6 @@ clean::
 	rm -f ${PROG} ${PROG}.blob-{1.{o,map,tablist},2.{o,map,x}}
 
 else
-$(info Makerules read from subdir ${THIS_SUBDIR} ; $(basename ${THIS_SUBDIR_NAME}))
-
 # build object for this directory
 
 ../${THIS_SUBDIR_NAME}.blob.o: ${OBJS}
