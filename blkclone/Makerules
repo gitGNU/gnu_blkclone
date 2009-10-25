@@ -65,7 +65,7 @@ DEPOBS=$(shell (for subdir in ${SUBDIRS}; do \
 		  done))
 
 ${PROG}.blob-2.o: ${PROG}.blob-1.o ${PROG}.blob-2.x
-	${LD} ${LDFLAGS} -r -T ${PROG}.blob-2.x ${OBJS} ${DEPOBS} -o $@ -M > ${PROG}.blob-2.map
+	${LD} ${LDFLAGS} -r -T ${PROG}.blob-2.x ${OBJS} ${DEPOBS} -o $@ -Map ${PROG}.blob-2.map
 
 ${PROG}.blob-2.x: ${PROG}.blob-1.tablist Makerules
 	@echo GEN $@
@@ -92,11 +92,18 @@ ${PROG}.blob-2.x: ${PROG}.blob-1.tablist Makerules
 %.tablist: %.o
 	${OBJCOPY} -j .tab._meta_ -O binary $^ $@
 
-${PROG}.blob-1.o: ${OBJS} ${SUBDIRS:%=%.dep}
-	${LD} ${LDFLAGS} -r ${OBJS} ${DEPOBS} -o $@ -M > ${PROG}.blob-1.map
+${PROG}.blob-1.o: ${OBJS} ${SUBDIRS:%=%.dep} ${PROG}.blob-1.x
+	${LD} ${LDFLAGS} -r -x -T ${PROG}.blob-1.x ${OBJS} ${DEPOBS} -o $@ -Map ${PROG}.blob-1.map
+
+${PROG}.blob-1.x: Makerules
+	@echo GEN $@
+	@echo SECTIONS { > $@
+	@echo ".tab._meta_ 0 : { *(.tab._meta_) }" >> $@
+	@echo "/DISCARD/ : { *(*) }" >> $@
+	@echo } >> $@
 
 clean::
-	rm -f ${PROG} ${PROG}.blob-{1.{o,map,tablist},2.{o,map,x}}
+	rm -f ${PROG} ${PROG}.blob-{1.{o,map,x,tablist},2.{o,map,x}}
 
 else
 # build objects and collect dependencies for this directory
