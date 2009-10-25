@@ -6,3 +6,5 @@ a.out
 *.[oa]
 # ignore link maps
 *.map
+# ignore dependency lists
+*.dep

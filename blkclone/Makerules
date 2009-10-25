@@ -23,7 +23,8 @@
 # All makefiles search up the directory tree and include this file.
 # The final multicall binary appears at the same tree level as this file.
 #
-# Each subdirectory produces a single relocatable object in its parent directory.
+# Each subdirectory produces a single list of objects in its parent directory.
+#  At top-level, all of these objects are directly linked into the final blob.
 #
 # The following make variables should be set in makefiles:
 #
@@ -49,8 +50,6 @@ THIS_SUBDIR_NAME:=$(shell echo ${THIS_SUBDIR} | sed -e 's!^.*/!!g')
 
 CFLAGS += -I${TOP}/include
 
-OBJS += ${SUBDIRS:%=%.blob.o}
-
 .PHONY: clean
 
 ifeq (${MKRULE},Makerules)
@@ -60,54 +59,66 @@ TOP:=.
 ${PROG}: ${PROG}.blob-2.o
 	${CC} $^ -o $@
 
+DEPOBS=$(shell (for subdir in ${SUBDIRS}; do \
+		  head -1 $${subdir}.dep | tr -d '\n' | \
+		  sed -e 's/^.*://' ; \
+		  done))
+
 ${PROG}.blob-2.o: ${PROG}.blob-1.o ${PROG}.blob-2.x
-	${LD} ${LDFLAGS} -r -T ${PROG}.blob-2.x ${OBJS} -o $@ -M > ${PROG}.blob-2.map
+	${LD} ${LDFLAGS} -r -T ${PROG}.blob-2.x ${OBJS} ${DEPOBS} -o $@ -M > ${PROG}.blob-2.map
 
 ${PROG}.blob-2.x: ${PROG}.blob-1.tablist Makerules
-	echo SECTIONS > $@
-	echo { >> $@
-	echo .rodata 0 : >> $@
-	echo { >> $@
-	echo '*(.rodata)' >> $@
-	echo '. = ALIGN(0x10);' >> $@
-	tr -d '\000' < ${PROG}.blob-1.tablist | sed -e 's/--\(.*\)--RW--.*//' \
+	@echo GEN $@
+	@echo SECTIONS > $@
+	@echo { >> $@
+	@echo .rodata 0 : >> $@
+	@echo { >> $@
+	@echo '*(.rodata)' >> $@
+	@echo '. = ALIGN(0x10);' >> $@
+	@tr -d '\000' < ${PROG}.blob-1.tablist | sed -e 's/--\(.*\)--RW--.*//' \
 	    -e 's/--\(.*\)--RO--.*/ldtable__i__\1_start = .;\n*(.tab.\1)\nldtable__i__\1_end = .;/' \
 	 >> $@
-	echo } >> $@
-	echo .data 0 : >> $@
-	echo { >> $@
-	echo '*(.data)' >> $@
-	echo '. = ALIGN(0x10);' >> $@
-	tr -d '\000' < ${PROG}.blob-1.tablist | sed -e 's/--\(.*\)--RO--.*//' \
+	@echo } >> $@
+	@echo .data 0 : >> $@
+	@echo { >> $@
+	@echo '*(.data)' >> $@
+	@echo '. = ALIGN(0x10);' >> $@
+	@tr -d '\000' < ${PROG}.blob-1.tablist | sed -e 's/--\(.*\)--RO--.*//' \
 	    -e 's/--\(.*\)--RW--.*/ldtable__i__\1_start = .;\n*(.tab.\1)\nldtable__i__\1_end = .;/' \
 	 >> $@
-	echo } >> $@
-	echo } >> $@
+	@echo } >> $@
+	@echo } >> $@
 
 %.tablist: %.o
 	${OBJCOPY} -j .tab._meta_ -O binary $^ $@
 
-${PROG}.blob-1.o: ${OBJS}
-	${LD} ${LDFLAGS} -r ${OBJS} -o $@ -M > ${PROG}.blob-1.map
+${PROG}.blob-1.o: ${OBJS} ${SUBDIRS:%=%.dep}
+	${LD} ${LDFLAGS} -r ${OBJS} ${DEPOBS} -o $@ -M > ${PROG}.blob-1.map
 
 clean::
 	rm -f ${PROG} ${PROG}.blob-{1.{o,map,tablist},2.{o,map,x}}
 
 else
-# build object for this directory
+# build objects and collect dependencies for this directory
 
-../${THIS_SUBDIR_NAME}.blob.o: ${OBJS}
-	${LD} ${LDFLAGS} -r ${OBJS} -o $@ -M > ../${THIS_SUBDIR_NAME}.blob.map
+../${THIS_SUBDIR_NAME}.dep: ${OBJS} ${SUBDIRS:%=%.dep}
+	@echo GEN $@
+	@echo -n ${THIS_SUBDIR_NAME}.dep: ${OBJS:%=${THIS_SUBDIR_NAME}/%} > $@
+	@(for subdir in ${SUBDIRS}; do \
+	  head -1 $${subdir}.dep | tr -d '\n' | \
+	  sed -e 's/^.*://' \
+	      -e 's/ \([A-Za-z]\)/ '${THIS_SUBDIR_NAME}'\/\1/g' >> $@; \
+	  done) ; echo >> $@
 
 endif
 
 # recurse into subdirs
-%.blob.o: $(wildcard %/*)
+%.dep: %/*
 	${MAKE} -C $*
 
 # clean this directory
 clean::
-	rm -f ${OBJS} ${SUBDIRS:%=%.blob.map}
+	rm -f ${OBJS} ${SUBDIRS:%=%.dep}
 
 ifneq (${SUBDIRS},)
 # clean subdirs
