@@ -102,7 +102,7 @@ static inline int ssa_from_ecma107_desc(struct ecma107_desc * desc)
 #define CN_TO_LSN(CN,SC,SSA)	((((CN) - 2) * (SC)) + (SSA))
 
 // assertion (neat trick from autoconf)
-unsigned char ____assert_struct_ecma107_FDC_size_check
+static unsigned char ____assert_struct_ecma107_FDC_size_check
 [ (sizeof(struct ecma107_desc) == 512) ? 0 : -512 ];
 
 #endif
