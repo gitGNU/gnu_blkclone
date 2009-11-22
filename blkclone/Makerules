@@ -67,30 +67,16 @@ DEPOBS=$(shell (for subdir in ${SUBDIRS}; do \
 ${PROG}.blob-2.o: ${PROG}.blob-1.o ${PROG}.blob-2.x
 	${LD} ${LDFLAGS} -r -T ${PROG}.blob-2.x ${OBJS} ${DEPOBS} -o $@ -Map ${PROG}.blob-2.map
 
-${PROG}.blob-2.x: ${PROG}.blob-1.tablist Makerules
+${PROG}.blob-2.x: ${PROG}.blob-1.tablist genldtabx
 	@echo GEN $@
-	@echo SECTIONS > $@
-	@echo { >> $@
-	@echo .rodata 0 : >> $@
-	@echo { >> $@
-	@echo '*(.rodata)' >> $@
-	@echo '. = ALIGN(0x10);' >> $@
-	@tr -d '\000' < ${PROG}.blob-1.tablist | sed -e 's/--\(.*\)--RW--.*//' \
-	    -e 's/--\(.*\)--RO--.*/ldtable__i__\1_start = .;\n*(.tab.\1)\nldtable__i__\1_end = .;/' \
-	 >> $@
-	@echo } >> $@
-	@echo .data 0 : >> $@
-	@echo { >> $@
-	@echo '*(.data)' >> $@
-	@echo '. = ALIGN(0x10);' >> $@
-	@tr -d '\000' < ${PROG}.blob-1.tablist | sed -e 's/--\(.*\)--RO--.*//' \
-	    -e 's/--\(.*\)--RW--.*/ldtable__i__\1_start = .;\n*(.tab.\1)\nldtable__i__\1_end = .;/' \
-	 >> $@
-	@echo } >> $@
-	@echo } >> $@
+	@./genldtabx ${PROG}.blob-1.tablist > $@
+
+genldtabx: genldtabx.o
+
+genldtabx.o: include/ldtable.h
 
 %.tablist: %.o
-	${OBJCOPY} -j .tab._meta_ -O binary $^ $@
+	${OBJCOPY} -j .ldtab._meta_ -O binary $^ $@
 
 ${PROG}.blob-1.o: ${OBJS} ${SUBDIRS:%=%.dep} ${PROG}.blob-1.x
 	${LD} ${LDFLAGS} -r -x -T ${PROG}.blob-1.x ${OBJS} ${DEPOBS} -o $@ -Map ${PROG}.blob-1.map
@@ -98,12 +84,12 @@ ${PROG}.blob-1.o: ${OBJS} ${SUBDIRS:%=%.dep} ${PROG}.blob-1.x
 ${PROG}.blob-1.x: Makerules
 	@echo GEN $@
 	@echo SECTIONS { > $@
-	@echo ".tab._meta_ 0 : { *(.tab._meta_) }" >> $@
+	@echo ".ldtab._meta_ 0 : { *(.ldtab._meta_) }" >> $@
 	@echo "/DISCARD/ : { *(*) }" >> $@
 	@echo } >> $@
 
 clean::
-	rm -f ${PROG} ${PROG}.blob-{1.{o,map,x,tablist},2.{o,map,x}}
+	rm -f ${PROG} ${PROG}.blob-{1.{o,map,x,tablist},2.{o,map,x}} genldtabx{,.o}
 
 else
 # build objects and collect dependencies for this directory
