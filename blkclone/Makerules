@@ -48,7 +48,7 @@ TOP:=${MKRULE:%/Makerules=%}
 THIS_SUBDIR:=$(shell pwd | sed -e 's!^.*\('$$(echo ${MKRULE} | tr -dc '/' | sed -e 's!/!/[^/]\\+!g')'\)$$!\1!' -e 's!^/!!')
 THIS_SUBDIR_NAME:=$(shell echo ${THIS_SUBDIR} | sed -e 's!^.*/!!g')
 
-CFLAGS += -I${TOP}/include
+override CFLAGS += -I${TOP}/include
 
 .PHONY: clean
 
