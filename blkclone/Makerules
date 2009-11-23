@@ -119,4 +119,6 @@ clean::
 	(for subdir in ${SUBDIRS}; do ${MAKE} -C $$subdir clean; done)
 endif
 
+include ${SUBDIRS:%=%.dep}
+
 #EOF
