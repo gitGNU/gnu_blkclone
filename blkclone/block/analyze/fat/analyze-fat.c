@@ -282,24 +282,21 @@ static void emit_FAT_blocklist(FILE * out,struct FAT_context * ctx)
     fprintf(out,"%lld+%lld\n",start,block-start);
 }
 
-static void usage(char * name)
-{
-  fprintf(stderr,"%s: <FAT filesystem image>\n",name);
-  exit(1);
-}
+static char usagetext[] = "analyze_fat <FAT filesystem image>\n";
 
 static inline void fatal(char * msg)
 { perror(msg); exit (1); }
 
 DECLARE_MULTICALL_TABLE(main);
 //int main(int argc, char ** argv)
-SUBCALL_MAIN(main, analyze_fat, int argc, char ** argv)
+SUBCALL_MAIN(main, analyze_fat, usagetext, NULL,
+	     int argc, char ** argv)
 {
   FILE * fs = NULL;
   struct FAT_context ctx = { 0 };
   int ret = 0;
 
-  if (argc != 2) usage(argv[0]);
+  if (argc != 2) print_usage_and_exit(usagetext);
 
   fs = fopen(argv[1],"r");
   if (!fs) fatal("could not open filesystem");

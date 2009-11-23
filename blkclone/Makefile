@@ -3,7 +3,7 @@
 PROG=blkclone
 
 SUBDIRS=block
-OBJS=dispatch.o
+OBJS=dispatch.o help.o
 
 # N.B. !  If Makerules isn't present in or above this directory,
 #		then this is an infinite loop.

@@ -372,33 +372,23 @@ static struct keylist * parse_args(int argc, char **argv)
   return head;
 }
 
-static void help(char * name)
-{
-  printf("%s <mode> idx=<index> src=<source> tgt=<target> <other options>\n",
-	 name);
-  puts("Options:");
-  puts("\t<mode> is one of:");
-  puts("\t  export -- copy data from disk to image file");
-  puts("\t  import -- copy data from image file to disk");
-  puts("\tidx   -- specify index file");
-  puts("\tsrc   -- specify source from which to read");
-  puts("\ttgt   -- specfiy target to which to write");
-  puts("\tnuke  -- (load mode only) write zero to unused blocks");
-  puts("\tforce -- do it anyway; even if it looks wrong");
-  exit(1);
-}
-
-static void usage(char * name)
-{
-  fprintf(stderr,
-	  "%s <mode> idx=<index> src=<source> tgt=<target> <other options>\n",
-	  name);
-  exit(1);
-}
+static char usagetext[] =
+  "sparsecopy <mode> idx=<index> src=<source> tgt=<target> <other options>\n";
+static char helptext[] =
+  "Options:\n"
+  "\t<mode> is one of:\n"
+  "\t  export -- copy data from disk to image file\n"
+  "\t  import -- copy data from image file to disk\n"
+  "\tidx   -- specify index file\n"
+  "\tsrc   -- specify source from which to read\n"
+  "\ttgt   -- specfiy target to which to write\n"
+  "\tnuke  -- (import mode only) write zero to unused blocks\n"
+  "\tforce -- do it anyway; even if it looks wrong\n";
 
 DECLARE_MULTICALL_TABLE(main);
 //int main(int argc, char ** argv)
-SUBCALL_MAIN(main, sparsecopy, int argc, char ** argv)
+SUBCALL_MAIN(main, sparsecopy, usagetext, helptext,
+	     int argc, char ** argv)
 {
   struct keylist * args = NULL;
   struct keylist * map_info = NULL;
@@ -407,8 +397,6 @@ SUBCALL_MAIN(main, sparsecopy, int argc, char ** argv)
   int ret = 1;
 
   args = parse_args(argc, argv);
-
-  if (keylist_get(args,"help")) help(argv[0]);
 
   { struct keylist * i;
     for (i=args; i; i=i->next)
@@ -424,7 +412,7 @@ SUBCALL_MAIN(main, sparsecopy, int argc, char ** argv)
     if (!(  (keylist_get(args,"idx"))
 	  &&(keylist_get(args,"src"))&&(keylist_get(args,"tgt"))
 	  &&(modecnt==1)))  // ...and exactly one mode flag
-      usage(argv[0]);
+      print_usage_and_exit(usagetext);
   }
 
 #ifdef EAT_DATA

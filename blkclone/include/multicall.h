@@ -35,14 +35,20 @@
 
 struct multicall_cell {
   char * name;
+  char * usagetext;	//usage syntax
+  char * helptext;	//long help text; printed after usage
   int (*func)(int argc, char **argv);
 };
 
+//central place to print a usage message for an invalid call
+void print_usage_and_exit(char * usagetext);
+
 /* the ... are the args for main; followed by function body */
-#define SUBCALL_MAIN(tabname,module_name,...)			\
-  int main__ ## tabname ## __ ## module_name (__VA_ARGS__);	\
-  MAKE_LDTABLE_ENTRY(mcall_ ## tabname,module_name) =		\
-  { #module_name, main__ ## tabname ## __ ## module_name };	\
+#define SUBCALL_MAIN(tabname,module_name,use_,hlp_,...)	    \
+  int main__ ## tabname ## __ ## module_name (__VA_ARGS__);  \
+  MAKE_LDTABLE_ENTRY(mcall_ ## tabname,module_name) =	      \
+  { #module_name, use_, hlp_,				       \
+    main__ ## tabname ## __ ## module_name };			\
   int main__ ## tabname ## __ ## module_name (__VA_ARGS__)
 
 #endif
