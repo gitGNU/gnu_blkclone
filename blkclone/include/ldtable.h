@@ -84,7 +84,7 @@
  */
 #define REGISTER_LDTABLE(name)			       \
   static struct ldtable_metatable_cell			\
-  LDTABLE_CELLNAME(_meta_, name) []			 \
+  LDTABLE_CELLNAME(_meta_, name)			 \
        AS_LDTABLE_CELL(_meta_) =			  \
   { __alignof__(LDTABLE_CELLTYPE(name)),		   \
     sizeof(LDTABLE_CELLTYPE(name)), 1, {#name} }
