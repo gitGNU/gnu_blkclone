@@ -372,11 +372,6 @@ SUBCALL_MAIN(main, sparsecopy, usagetext, helptext,
 
   args = keylist_parse_args(argc, argv);
 
-  { struct keylist * i;
-    for (i=args; i; i=i->next)
-      printf(" %s = %s\n",i->key,i->value);
-  }
-
   { int modecnt = 0;
 
     for (mode_ptr=mode_list; mode_ptr->name; mode_ptr++)
