@@ -86,8 +86,9 @@
   static struct ldtable_metatable_cell			\
   LDTABLE_CELLNAME(_meta_, name)			 \
        AS_LDTABLE_CELL(_meta_) =			  \
-  { __alignof__(LDTABLE_CELLTYPE(name)),		   \
-    sizeof(LDTABLE_CELLTYPE(name)), 1, {#name} }
+  { {0x3f, 0x34, 0x32}, 1,				   \
+    __alignof__(LDTABLE_CELLTYPE(name)),		    \
+    sizeof(LDTABLE_CELLTYPE(name)), {#name} }
 
 /* REGISTER_LDTABLE_WRITABLE(name)
  *  Macro:  make a linker-assembled table visible to the build process
@@ -101,8 +102,9 @@
   static struct ldtable_metatable_cell			\
   LDTABLE_CELLNAME(_meta_, name) []			 \
        AS_LDTABLE_CELL(_meta_) =			  \
-  { __alignof__(LDTABLE_CELLTYPE(name)),		   \
-    sizeof(LDTABLE_CELLTYPE(name)), 2, {#name} }
+  { {0x3f, 0x34, 0x32}, 2,				   \
+    __alignof__(LDTABLE_CELLTYPE(name)),		    \
+    sizeof(LDTABLE_CELLTYPE(name)), {#name} }
 
 /* MAKE_LDTABLE_ENTRY(name, nonce)
  *  Macro:  make an entry in a linker-assembled table
@@ -116,12 +118,15 @@
    LDTABLE_CELLNAME(name, nonce)	  \
        AS_LDTABLE_CELL(name)
 
+#include <stdint.h>
+
 struct ldtable_metatable_cell {
-  int align;		// alignment for this table
-  int cellsize;		// sizeof LDTABLE_CELLTYPE for this table
-  int mode;		// 1 -- R/O ; 2 -- R/W
+  uint8_t  magic[3];	// magic value: 0x3f3432
+  uint8_t  mode;	// 1 -- R/O ; 2 -- R/W
+  uint16_t align;	// alignment for this table
+  uint16_t cellsize;	// sizeof LDTABLE_CELLTYPE for this table
   char name[0];
-};
+} __attribute__((packed));
 
 DECLARE_LDTABLE(_meta_, struct ldtable_metatable_cell);
 

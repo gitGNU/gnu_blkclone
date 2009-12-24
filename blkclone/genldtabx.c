@@ -56,23 +56,35 @@ void * map_file(int fd)
   return ret;
 }
 
+static size_t sizeof_cell(struct ldtable_metatable_cell * c)
+{ return sizeof(struct ldtable_metatable_cell) + strlen(c->name) + 1; }
+
+static struct ldtable_metatable_cell *
+next_cell(struct ldtable_metatable_cell * c, size_t * bound)
+{
+  uint8_t * i = (uint8_t *)c;
+  i += sizeof(struct ldtable_metatable_cell);
+  i += strlen(c->name);
+  // now skip any padding that may have been inserted
+  i = memmem(i,(*bound) - (i-((uint8_t*)c)),"?42",3);
+  if (i) *bound -= (i-((uint8_t*)c));
+  else   *bound = 0;
+  return (struct ldtable_metatable_cell *)i;
+}
+
 void generate_ldscript(struct ldtable_metatable_cell * tab, size_t tablen)
 {
   struct ldtable_metatable_cell * cell = tab;
-  size_t sizeof_this_cell()
-  { return sizeof(struct ldtable_metatable_cell) + strlen(cell->name) + 1; }
-  struct ldtable_metatable_cell * next_cell()
-  { return ((struct ldtable_metatable_cell *)
-	    (((void *)cell) + sizeof_this_cell())); }
+  size_t len = tablen;
 
   puts("SECTIONS {");
 
   //first pass; collect R/O tables
   puts("  .rodata 0 : {");
   puts("    *(.rodata)");
-  for (cell = tab;
-       (((void*)cell) - ((void*)tab)) < tablen;
-       cell = next_cell())
+  for (cell = tab, len = tablen;
+       cell;
+       cell = next_cell(cell,&len))
     if (cell->mode == 1) {
       //align to the largest of declared alignment and cell size
       printf("    . = ALIGN(0x%X);\n",
@@ -89,9 +101,9 @@ void generate_ldscript(struct ldtable_metatable_cell * tab, size_t tablen)
   //second pass; collect R/W tables
   puts("  .data 0 : {");
   puts("    *(.data)");
-  for (cell = tab;
-       (((void*)cell) - ((void*)tab)) < tablen;
-       cell = next_cell())
+  for (cell = tab, len = tablen;
+       cell;
+       cell = next_cell(cell,&len))
     if (cell->mode == 2) {
       //align to the largest of declared alignment and cell size
       printf("    . = ALIGN(0x%X);\n",
