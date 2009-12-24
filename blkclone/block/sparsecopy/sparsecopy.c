@@ -346,32 +346,6 @@ static int do_import(struct keylist * args,
   return 0;
 }
 
-static struct keylist * parse_args(int argc, char **argv)
-{
-  struct keylist * head = NULL;
-  struct keylist * i = NULL;
-  char * key = NULL;
-  char * value = NULL;
-
-  head = keylist_new(*argv,""); i = head; argv++; argc--;
-  while (argc--) {
-    if (strchr(*argv,'=')) {
-      char buf[strlen(*argv)+1];
-      strcpy(buf,*argv);
-      value = strchr(buf,'=');
-      *value = 0; value++;
-      for(key = buf; (*key == '-'); key++);
-      i->next = keylist_new(key,value);
-    } else {
-      for(key = *argv; (*key == '-'); key++);
-      i->next = keylist_new(key,"");
-    }
-    i = i->next; argv++;
-  }
-
-  return head;
-}
-
 static char usagetext[] =
   "sparsecopy <mode> idx=<index> src=<source> tgt=<target> <other options>\n";
 static char helptext[] =
@@ -396,7 +370,7 @@ SUBCALL_MAIN(main, sparsecopy, usagetext, helptext,
   struct imaging_context ctx = {0};
   int ret = 1;
 
-  args = parse_args(argc, argv);
+  args = keylist_parse_args(argc, argv);
 
   { struct keylist * i;
     for (i=args; i; i=i->next)

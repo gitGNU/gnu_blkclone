@@ -61,4 +61,9 @@ keylist_get(struct keylist * l, char * k)
     else l = l->next;
   return NULL; }
 
+/* Convert ARGC and ARGV into a keylist by decomposing each argument as
+   KEY=VALUE.  Strips leading dashes from keys.
+ */
+struct keylist * keylist_parse_args(int argc, char **argv);
+
 #endif

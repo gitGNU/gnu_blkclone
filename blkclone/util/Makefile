@@ -1,9 +1,8 @@
-# Makefile for blkclone; top-level directory
+# Makefile for blkclone; util directory
 
-PROG=blkclone
+SUBDIRS=
 
-SUBDIRS=block util
-OBJS=dispatch.o help.o
+OBJS=keylist.o
 
 # N.B. !  If Makerules isn't present in or above this directory,
 #		then this is an infinite loop.
