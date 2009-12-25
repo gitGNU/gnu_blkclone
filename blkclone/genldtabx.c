@@ -90,7 +90,7 @@ void generate_ldscript(struct ldtable_metatable_cell * tab, size_t tablen)
       printf("    . = ALIGN(0x%X);\n",
 	     (cell->align > cell->cellsize) ? cell->align : cell->cellsize);
       printf("    ldtable__i__%s_start = .;\n", cell->name);
-      printf("      *(.ldtab.%s)\n", cell->name);
+      printf("      *(ldtab.%s)\n", cell->name);
       printf("    ldtable__i__%s_end = .;\n", cell->name);
 
       fprintf(stderr,"  table %s align 0x%X cellsize 0x%X R/O\n",
@@ -109,7 +109,7 @@ void generate_ldscript(struct ldtable_metatable_cell * tab, size_t tablen)
       printf("    . = ALIGN(0x%X);\n",
 	     (cell->align > cell->cellsize) ? cell->align : cell->cellsize);
       printf("    ldtable__i__%s_start = .;\n", cell->name);
-      printf("      *(.ldtab.%s)\n", cell->name);
+      printf("      *(ldtab.%s)\n", cell->name);
       printf("    ldtable__i__%s_end = .;\n", cell->name);
 
       fprintf(stderr,"  table %s align 0x%X cellsize 0x%X R/W\n",

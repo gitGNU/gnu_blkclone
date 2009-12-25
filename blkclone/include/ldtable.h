@@ -59,7 +59,7 @@
  *		a linker-assembled table
  */
 #define AS_LDTABLE_CELL(name)  \
-  __attribute__((section(".ldtab." #name), used))
+  __attribute__((section("ldtab." #name), used))
 
 /* DECLARE_LDTABLE(name,entry_type)
  *  Macro:  declare a linker-assembled table

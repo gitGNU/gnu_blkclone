@@ -76,7 +76,7 @@ genldtabx: genldtabx.o
 genldtabx.o: include/ldtable.h
 
 %.tablist: %.o
-	${OBJCOPY} -j .ldtab._meta_ -O binary $^ $@
+	${OBJCOPY} -j ldtab._meta_ -O binary $^ $@
 
 ${PROG}.blob-1.o: ${OBJS} ${SUBDIRS:%=%.dep} ${PROG}.blob-1.x
 	${LD} ${LDFLAGS} -r -x -T ${PROG}.blob-1.x ${OBJS} ${DEPOBS} -o $@ -Map ${PROG}.blob-1.map
@@ -84,7 +84,7 @@ ${PROG}.blob-1.o: ${OBJS} ${SUBDIRS:%=%.dep} ${PROG}.blob-1.x
 ${PROG}.blob-1.x: Makerules
 	@echo GEN $@
 	@echo SECTIONS { > $@
-	@echo ".ldtab._meta_ 0 : { *(.ldtab._meta_) }" >> $@
+	@echo "ldtab._meta_ 0 : { *(ldtab._meta_) }" >> $@
 	@echo "/DISCARD/ : { *(*) }" >> $@
 	@echo } >> $@
 
