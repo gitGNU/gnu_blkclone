@@ -37,6 +37,7 @@
 #include "multicall.h"
 
 #include "analyze/ecma-107.h"
+#include "analyze/dispatch.h"
 
 /* It appears that the ONLY aligned block in a FAT filesystem is the
  *  hardware sector.  In other words, the cluster size means nothing beyond
@@ -324,3 +325,66 @@ SUBCALL_MAIN(main, analyze_fat, usagetext, NULL,
 
   return 0;
 }
+
+static int FAT_ad_recognize(FILE * fs, const void * hdrbuf)
+{
+  struct ecma107_desc * f = (struct ecma107_desc *) hdrbuf;
+  int ret = 1;
+
+  // one of the sector counts must be non-zero
+  ret = ret && (f->scnt_small || f->scnt);
+  // and both sectors/cluster and sectors/FAT be non-zero
+  ret = ret && f->spc && f->spf;
+  // and the System Area must have a non-zero computed size
+  ret = ret && ssa_from_ecma107_desc(f);
+  // and the EPB must contain "FAT" fstype
+  ret = ret && ((((f->epb.xtnd_sig | 1) == 0x29)
+		 &&(f->epb.fstype[0] == 'F')
+		 &&(f->epb.fstype[1] == 'A')
+		 &&(f->epb.fstype[2] == 'T'))
+		||(((f->f32.xtnd_sig | 1) == 0x29)
+		   &&(f->f32.fstype[0] == 'F')
+		   &&(f->f32.fstype[1] == 'A')
+		   &&(f->f32.fstype[2] == 'T')
+		   &&(f->f32.fstype[3] == '3')
+		   &&(f->f32.fstype[4] == '2')));
+  // auto-detection will not work with archaic FAT filesystems
+
+  return ret;
+}
+
+static int FAT_ad_analyze(FILE * fs, FILE * out, char * ignore)
+{
+  struct FAT_context ctx = { 0 };
+  int ret = 0;
+
+  ret = FAT_init(&ctx,fs);
+  if (ret < 0) fatal("failed to read FS descriptor");
+
+  ctx.dscount = FAT_count_used_sectors(&ctx);
+
+  fprintf(out,"Type:\tFAT\n");
+  fprintf(out,"FsType:\tFAT%d\n",ctx.type);
+
+  fprintf(out,"# %d sectors/cluster; %d sectors/FAT\n",ctx.spc,ctx.spf);
+  fprintf(out,"# FAT spans %d entries\n",ctx.spf * ctx.ssize * 8 / ctx.type);
+
+  fprintf(out,"BlockSize:\t%d\n",ctx.ssize);
+  fprintf(out,"BlockCount:\t%d\n",ctx.dscount);
+  fprintf(out,"BlockRange:\t%d\n",ctx.scount);
+
+  fprintf(out,"BEGIN BLOCK LIST\n");
+  emit_FAT_blocklist(out,&ctx);
+  fprintf(out,"END BLOCK LIST\n");
+
+  return 0;
+}
+
+DECLARE_ANALYSIS_MODULE(FAT) = {
+  .name = "FAT",
+  .fs_hdrsize = sizeof(struct ecma107_desc),
+  .recognize = FAT_ad_recognize,
+  .analyze = FAT_ad_analyze,
+  0 };
+
+//EOF
