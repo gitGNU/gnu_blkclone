@@ -56,7 +56,7 @@ ifeq (${MKRULE},Makerules)
 # build final binary
 TOP:=.
 
-${PROG}: ${PROG}.blob-2.o
+${PROG}: ${PROG}.blob.o
 	${CC} $^ -o $@
 
 DEPOBS=$(shell (for subdir in ${SUBDIRS}; do \
@@ -64,32 +64,30 @@ DEPOBS=$(shell (for subdir in ${SUBDIRS}; do \
 		  sed -e 's/^.*://' ; \
 		  done))
 
-${PROG}.blob-2.o: ${PROG}.blob-1.o ${PROG}.blob-2.x
-	${LD} ${LDFLAGS} -r -T ${PROG}.blob-2.x ${OBJS} ${DEPOBS} -o $@ -Map ${PROG}.blob-2.map
+${PROG}.blob.o: ${PROG}.blob.x
+	${LD} ${LDFLAGS} -r -T ${PROG}.blob.x ${OBJS} ${DEPOBS} -o $@ -Map ${PROG}.blob.map
 
-${PROG}.blob-2.x: ${PROG}.blob-1.tablist genldtabx
+${PROG}.blob.x: ${PROG}.tablist genldtabx
 	@echo GEN $@
-	@./genldtabx ${PROG}.blob-1.tablist > $@
+	@./genldtabx ${PROG}.tablist > $@
 
 genldtabx: genldtabx.o
 
 genldtabx.o: include/ldtable.h
 
-%.tablist: %.o
-	${OBJCOPY} -j ldtab._meta_ -O binary $^ $@
+${PROG}.tablist: ${OBJS} ${SUBDIRS:%=%.dep} ${PROG}.tablist.x
+	${LD} ${LDFLAGS} -x -T ${PROG}.tablist.x ${OBJS} ${DEPOBS} -o $@ -Map ${PROG}.tablist.map
 
-${PROG}.blob-1.o: ${OBJS} ${SUBDIRS:%=%.dep} ${PROG}.blob-1.x
-	${LD} ${LDFLAGS} -r -x -T ${PROG}.blob-1.x ${OBJS} ${DEPOBS} -o $@ -Map ${PROG}.blob-1.map
-
-${PROG}.blob-1.x: Makerules
+${PROG}.tablist.x: Makerules
 	@echo GEN $@
 	@echo SECTIONS { > $@
 	@echo "ldtab._meta_ 0 : { *(ldtab._meta_) }" >> $@
 	@echo "/DISCARD/ : { *(*) }" >> $@
 	@echo } >> $@
+	@echo "OUTPUT_FORMAT(binary)" >> $@
 
 clean::
-	rm -f ${PROG} ${PROG}.blob-{1.{o,map,x,tablist},2.{o,map,x}} genldtabx{,.o}
+	rm -f ${PROG} ${PROG}.{blob.{o,map,x},tablist{,.map,.x}} genldtabx{,.o}
 
 else
 # build objects and collect dependencies for this directory
