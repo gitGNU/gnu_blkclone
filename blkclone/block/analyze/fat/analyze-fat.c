@@ -1,7 +1,7 @@
 /*
  *  Analyze a FAT filesystem to generate a block map for sparse imaging.
  *
- * Copyright (C) 2009 Jacob Bachmeyer
+ * Copyright (C) 2009, 2010 Jacob Bachmeyer
  *
  * This file is part of blkclone.
  *
@@ -287,44 +287,6 @@ static char usagetext[] = "analyze_fat <FAT filesystem image>\n";
 
 static inline void fatal(char * msg)
 { perror(msg); exit (1); }
-
-DECLARE_MULTICALL_TABLE(main);
-//int main(int argc, char ** argv)
-SUBCALL_MAIN(main, analyze_fat, usagetext, NULL,
-	     int argc, char ** argv)
-{
-  FILE * fs = NULL;
-  struct FAT_context ctx = { 0 };
-  int ret = 0;
-
-  if (argc != 2) print_usage_and_exit(usagetext);
-
-  fs = fopen(argv[1],"r");
-  if (!fs) fatal("could not open filesystem");
-
-  ret = FAT_init(&ctx,fs);
-  if (ret < 0) fatal("failed to read FS descriptor");
-
-  ctx.dscount = FAT_count_used_sectors(&ctx);
-
-  printf("Type:\tFAT\n");
-  printf("FsType:\tFAT%d\n",ctx.type);
-
-  printf("# %d sectors/cluster; %d sectors/FAT\n",ctx.spc,ctx.spf);
-  printf("# FAT spans %d entries\n",ctx.spf * ctx.ssize * 8 / ctx.type);
-
-  printf("BlockSize:\t%d\n",ctx.ssize);
-  printf("BlockCount:\t%d\n",ctx.dscount);
-  printf("BlockRange:\t%d\n",ctx.scount);
-
-  printf("BEGIN BLOCK LIST\n");
-  emit_FAT_blocklist(stdout,&ctx);
-  printf("END BLOCK LIST\n");
-
-  fclose(fs);
-
-  return 0;
-}
 
 static int FAT_ad_recognize(FILE * fs, const void * hdrbuf)
 {

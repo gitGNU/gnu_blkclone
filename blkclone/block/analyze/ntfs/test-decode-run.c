@@ -22,9 +22,6 @@
 
 #include "analyze-ntfs.c" //<-- note that there isn't actually a main() in there
 
-void print_usage_and_exit(char * ignore)
-{} // so the above will link (the function that calls it won't be called)
-
 void testusage(char * name)
 {
   fprintf(stderr,"usage: %s <hex bytes for encoded run>\n",name);

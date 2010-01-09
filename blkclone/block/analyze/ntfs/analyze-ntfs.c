@@ -633,56 +633,6 @@ static char usagetext[] = "analyze_ntfs <mountpoint of NTFS filesystem>\n";
 static inline void fatal(char * msg)
 { perror(msg); exit (1); }
 
-DECLARE_MULTICALL_TABLE(main);
-//int main(int argc, char ** argv)
-SUBCALL_MAIN(main, analyze_ntfs, usagetext, NULL,
-	     int argc, char ** argv)
-{
-  FILE * boot = NULL;
-  FILE * bitmap = NULL;
-  char * bname = NULL;
-  struct NTFS_info ctx = { 0 };
-  int ret = 0;
-
-  if (argc != 2) print_usage_and_exit(usagetext);
-
-  asprintf(&bname, "%s/$Bitmap", argv[1]);
-  if (!bname) fatal("allocation failed");
-  bitmap = fopen(bname,"r");
-  if (!bitmap) fatal("could not open $Bitmap");
-  free (bname);
-  asprintf(&bname, "%s/$Boot", argv[1]);
-  if (!bname) fatal("allocation failed");
-  boot = fopen(bname,"r");
-  if (!bitmap) fatal("could not open $Boot");
-  free (bname);
-
-  ret = NTFS_get_info(&ctx,boot);
-  if (ret < 0) fatal("failed to read boot record");
-  fclose(boot);
-
-  ctx.dccount = NTFS_count_used_blocks(bitmap,ctx.ccount);
-
-  printf("Type:\tNTFS\n");
-
-  printf("# %d bytes/sector;  %d sectors/cluster; %d bytes/cluster\n",
-	 ctx.ssize,ctx.spc,ctx.csize);
-
-  printf("BlockSize:\t%lld\n",ctx.csize);
-  printf("BlockCount:\t%lld\n",ctx.dccount);
-  printf("BlockRange:\t%lld\n",ctx.ccount);
-
-  printf("BEGIN BLOCK LIST\n");
-  emit_NTFS_extent_list(stdout,bitmap,ctx.ccount);
-  //also catch the backup boot record
-  fprintf(stdout,"%lld+.1/%d\n",ctx.ccount,ctx.spc);
-  printf("END BLOCK LIST\n");
-
-  fclose(bitmap);
-
-  return 0;
-}
-
 static int NTFS_ad_recognize(FILE * fs, const void * hdrbuf)
 {
   struct ecma107_desc * f = (struct ecma107_desc *) hdrbuf;
