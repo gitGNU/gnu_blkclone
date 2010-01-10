@@ -657,6 +657,7 @@ static int NTFS_ad_analyze(FILE * fs, FILE * out, char * ignore)
   if (!vol) fatal("NTFS volinit failed");
 
   bitmap = NTFSdrv_fopen(vol, NTFS_RECNO_BITMAP);
+  if (!bitmap) fatal("could not open bitmap");
 
   vol->info.dccount = NTFS_count_used_blocks(bitmap,vol->info.ccount);
 
