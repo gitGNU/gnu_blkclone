@@ -671,7 +671,7 @@ static int NTFS_ad_analyze(FILE * fs, FILE * out, char * ignore)
   fprintf(out,"BlockRange:\t%lld\n",vol->info.ccount);
 
   fprintf(out,"BEGIN BLOCK LIST\n");
-  emit_NTFS_extent_list(stdout,bitmap,vol->info.ccount);
+  emit_NTFS_extent_list(out,bitmap,vol->info.ccount);
   //also catch the backup boot record
   fprintf(out,"%lld+.1/%d\n",vol->info.ccount,vol->info.spc);
   fprintf(out,"END BLOCK LIST\n");
