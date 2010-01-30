@@ -42,6 +42,7 @@
 #			 if a different make works, count yourself lucky.
 
 OBJCOPY=objcopy
+CHMOD=chmod
 
 TOP:=${MKRULE:%/Makerules=%}
 # magic to extract dirpath from toplevel
@@ -77,6 +78,7 @@ genldtabx.o: include/ldtable.h
 
 ${PROG}.tablist: ${OBJS} ${SUBDIRS:%=%.dep} ${PROG}.tablist.x
 	${LD} ${LDFLAGS} -x -T ${PROG}.tablist.x ${OBJS} ${DEPOBS} -o $@ -Map ${PROG}.tablist.map
+	${CHMOD} a-x $@
 
 ${PROG}.tablist.x: Makerules
 	@echo GEN $@
