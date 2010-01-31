@@ -40,7 +40,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-//#include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
@@ -120,10 +119,6 @@ static inline void show_progress(FILE * s, struct progress * p)
   fflush(s);
 }
 
-/* This function just copies data according to MAP from the stdio stream READ
- *  to the stdio stream WRITE, seeking on the stream SEEK (which should be one
- *  of the other two) according to the extents in MAP.
- */
 static int do_copy_internal(struct imaging_context * ctx,
 			    enum sparsecopy_mode mode,
 			    FILE * map, FILE * source, FILE * target)
