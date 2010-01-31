@@ -72,15 +72,16 @@ struct progress {
   int log_pct_f;	// % data stream (fractional)
   int phy_pct;		// % block device (integer)
   int phy_pct_f;	// % block device (fractional)
-  int src_baton;	// left baton position
-  int tgt_baton;	// right baton position
-  int src_baton_;	// left baton position as of last update
-  int tgt_baton_;	// right baton position as of last update
+  int log_baton;	// left baton position
+  int phy_baton;	// right baton position
+  int log_baton_;	// left baton position as of last update
+  int phy_baton_;	// right baton position as of last update
 };
 
 enum sparsecopy_mode {
-  MODE_EXPORT, // copy data to image
-  MODE_IMPORT, // copy data from image
+  MODE_EXPORT,		// copy data to image
+  MODE_IMPORT,		// copy data from image
+  MODE_NUKE_AND_IMPORT,	// copy data from image, zeroing out all else
   MODE_COUNT };
 
 static inline void fatal(char * msg)
@@ -114,8 +115,8 @@ static char baton[] = "|/-\\";
 static inline void show_progress(FILE * s, struct progress * p)
 {
   fprintf(s,"  %2d.%d%% %c -> %2d.%d%% %c\r",
-	  p->log_pct,p->log_pct_f,baton[3 & p->src_baton],
-	  p->phy_pct,p->phy_pct_f,baton[3 & p->tgt_baton]);
+	  p->log_pct,p->log_pct_f,baton[3 & p->log_baton],
+	  p->phy_pct,p->phy_pct_f,baton[3 & p->phy_baton]);
   fflush(s);
 }
 
@@ -128,23 +129,24 @@ static int do_copy_internal(struct imaging_context * ctx,
   struct v1_extent e = {0};
   unsigned int phy_frac, log_frac; //progress in 1/10ths percent
   int ret;
+  struct {
+    int zerofill : 1;	//write blocks of zero instead of seeking
+  } flags = {0};
 
-  void progress(void) { //update progress and maybe sync
+  void progress(void) { //update progress
     log_frac = ctx->logpos * 1000 / ctx->blockcount;
     phy_frac = ctx->phypos * 1000 / ctx->blockrange;
 
     p.log_pct = log_frac / 10; p.log_pct_f = log_frac % 10;
     p.phy_pct = phy_frac / 10; p.phy_pct_f = phy_frac % 10;
 
-    p.src_baton = ctx->diskcnt >> 8;
-    p.tgt_baton = ctx->logpos >> 8;
+    p.log_baton = ctx->logpos >> 8;
+    p.phy_baton = ctx->diskcnt >> 8;
 
-    if ((p.src_baton != p.src_baton_)||(p.tgt_baton != p.tgt_baton_)) {
-      p.src_baton_ = p.src_baton;
-	p.tgt_baton_ = p.tgt_baton;
-	show_progress(stderr, &p);
+    if ((p.log_baton != p.log_baton_)||(p.phy_baton != p.phy_baton_)) {
+      p.log_baton_ = p.log_baton; p.phy_baton_ = p.phy_baton;
+      show_progress(stderr, &p);
     }
-    //      if (!((ctx->diskcnt >> 11) & 3)) fdatasync(fileno(image));
   }
 
   switch (mode) {
@@ -152,16 +154,45 @@ static int do_copy_internal(struct imaging_context * ctx,
     seek = source; break;
   case MODE_IMPORT:
     seek = target; break;
+  case MODE_NUKE_AND_IMPORT:
+    seek = NULL; flags.zerofill = 1; break;
   default:
     return -1;
   }
 
   do {
     ret = map_v1_readcell(map, &e);
-    if (fseeko(seek, e.start * ctx->blocklen, SEEK_SET))
-      fatal("failed to seek");
-    if (ftello(seek) != (e.start * ctx->blocklen))
-      fatal("seek did not move file pointer as expected");
+    if (seek) {
+      if (fseeko(seek, e.start * ctx->blocklen, SEEK_SET))
+	fatal("failed to seek");
+      if (ftello(seek) != (e.start * ctx->blocklen))
+	fatal("seek did not move file pointer as expected");
+    }
+    else if (flags.zerofill && e.start) {
+      off_t gap = (e.start * ctx->blocklen) - ftello(target);
+      if (gap<0) fatal("not safe to seek backwards in zerofill mode");
+      memset(ctx->block, 0, ctx->blocklen);
+      while (gap >= ctx->blocklen) {
+	if (fwrite(ctx->block, ctx->blocklen, 1, target) != 1)
+	  fatal("failed to write zerofill block");
+	gap -= ctx->blocklen;
+	ctx->phypos++; ctx->diskcnt++; progress();
+      }
+      if (gap) {
+	fprintf(stderr,
+		"ASSERT:  Attempt to zerofill to other than a block boundary.\n"
+		"  (block %d; %d bytes left over)\n",
+		e.start, gap);
+	abort(); //assertion failed
+      }
+      if (ftello(target) != (e.start * ctx->blocklen)) {
+	fprintf(stderr,
+		"ASSERT:  Zerofill padding did not reach correct position.\n"
+		"  (wanted %d for block %d; got %d)\n",
+		(e.start * ctx->blocklen), e.start, ftello(target));
+	abort(); //assertion failed
+      }
+    }
     ctx->phypos = e.start;
     if (e.length)
       //copy whole blocks
@@ -187,13 +218,14 @@ static int do_copy_internal(struct imaging_context * ctx,
 	  fatal("failed to write padded block to image stream");
 	break;
       case MODE_IMPORT:
+      case MODE_NUKE_AND_IMPORT:
 	if (fread(ctx->block, ctx->blocklen, 1, source) != 1)
 	  fatal("failed to read padded block from image stream");
 	if (fwrite(ctx->block, len, 1, target) != 1)
 	  fatal("failed to write partial block to target");
 	break;
       default:
-	fprintf(stderr,"No, we did not just reach line %d in %s.\n",
+	fprintf(stderr,"ASSERT:  No, we did not just reach line %d in %s.\n",
 		__LINE__, __FILE__);
 	abort(); // assertion failed
       }
@@ -254,7 +286,6 @@ static int do_export(struct keylist * args,
   return do_copy_internal(ctx, MODE_EXPORT, map, source, image);
 }
 
-//TODO: implement "nuke" mode
 static int do_import(struct keylist * args,
 		     struct imaging_context * ctx,
 		     FILE * map, FILE * image, FILE * target)
@@ -308,7 +339,10 @@ static int do_import(struct keylist * args,
   }
 #endif
 
-  return do_copy_internal(ctx, MODE_IMPORT, map, image, target);
+  if (keylist_get(args,"nuke"))
+    return do_copy_internal(ctx, MODE_NUKE_AND_IMPORT, map, image, target);
+  else
+    return do_copy_internal(ctx, MODE_IMPORT, map, image, target);
 }
 
 static char usagetext[] =
