@@ -1,7 +1,7 @@
 /*
  * Sparsecopy core program
  *
- * Copyright (C) 2009 Jacob Bachmeyer
+ * Copyright (C) 2009, 2010 Jacob Bachmeyer
  *
  * This file is part of blkclone.
  *
