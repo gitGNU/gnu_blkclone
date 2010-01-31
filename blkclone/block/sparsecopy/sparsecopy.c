@@ -60,8 +60,8 @@ struct image_header_v1 {
 struct imaging_context {
   void * block;		// buffer holding current block
   size_t blocklen;	// block size
-  uint64_t imagepos;	// current block number in data stream
-  uint64_t diskpos;	// current block number on disk
+  uint64_t logpos;	// current block number in data stream
+  uint64_t phypos;	// current block number on disk
   uint64_t blockcount;	// number of blocks in data stream
   uint64_t blockrange;	// number of blocks on disk
   uint64_t diskcnt;	// count of blocks processed from/to disk
@@ -69,18 +69,27 @@ struct imaging_context {
 };
 
 struct progress {
-  int src_pct;		// % read from source (integer)
-  int src_pct_f;	// % read from source (fractional)
-  int tgt_pct;		// % written to target (integer)
-  int tgt_pct_f;	// % written to target (fractional)
+  int log_pct;		// % data stream (integer)
+  int log_pct_f;	// % data stream (fractional)
+  int phy_pct;		// % block device (integer)
+  int phy_pct_f;	// % block device (fractional)
   int src_baton;	// left baton position
   int tgt_baton;	// right baton position
   int src_baton_;	// left baton position as of last update
   int tgt_baton_;	// right baton position as of last update
 };
 
+enum sparsecopy_mode {
+  MODE_EXPORT, // copy data to image
+  MODE_IMPORT, // copy data from image
+  MODE_COUNT };
+
 static inline void fatal(char * msg)
 { perror(msg); exit (1); }
+
+static int do_copy_internal(struct imaging_context * ctx,
+			    enum sparsecopy_mode mode,
+			    FILE * map, FILE * source, FILE * target);
 
 static int do_export(struct keylist * args,
 		     struct imaging_context * ctx, FILE * map);
@@ -103,9 +112,99 @@ static char baton[] = "|/-\\";
 static inline void show_progress(FILE * s, struct progress * p)
 {
   fprintf(s,"  %2d.%d%% %c -> %2d.%d%% %c\r",
-	  p->src_pct,p->src_pct_f,baton[3 & p->src_baton],
-	  p->tgt_pct,p->tgt_pct_f,baton[3 & p->tgt_baton]);
+	  p->log_pct,p->log_pct_f,baton[3 & p->src_baton],
+	  p->phy_pct,p->phy_pct_f,baton[3 & p->tgt_baton]);
   fflush(s);
+}
+
+/* This function just copies data according to MAP from the stdio stream READ
+ *  to the stdio stream WRITE, seeking on the stream SEEK (which should be one
+ *  of the other two) according to the extents in MAP.
+ */
+static int do_copy_internal(struct imaging_context * ctx,
+			    enum sparsecopy_mode mode,
+			    FILE * map, FILE * source, FILE * target)
+{
+  FILE * seek;
+  struct progress p = {0};
+  struct v1_extent e = {0};
+  unsigned int phy_frac, log_frac; //progress in 1/10ths percent
+  int ret;
+
+  void progress(void) { //update progress and maybe sync
+    log_frac = ctx->logpos * 1000 / ctx->blockcount;
+    phy_frac = ctx->phypos * 1000 / ctx->blockrange;
+
+    p.log_pct = log_frac / 10; p.log_pct_f = log_frac % 10;
+    p.phy_pct = phy_frac / 10; p.phy_pct_f = phy_frac % 10;
+
+    p.src_baton = ctx->diskcnt >> 8;
+    p.tgt_baton = ctx->logpos >> 8;
+
+    if ((p.src_baton != p.src_baton_)||(p.tgt_baton != p.tgt_baton_)) {
+      p.src_baton_ = p.src_baton;
+	p.tgt_baton_ = p.tgt_baton;
+	show_progress(stderr, &p);
+    }
+    //      if (!((ctx->diskcnt >> 11) & 3)) fdatasync(fileno(image));
+  }
+
+  switch (mode) {
+  case MODE_EXPORT:
+    seek = source; break;
+  case MODE_IMPORT:
+    seek = target; break;
+  default:
+    return -1;
+  }
+
+  do {
+    ret = map_v1_readcell(map, &e);
+    if (fseeko(seek, e.start * ctx->blocklen, SEEK_SET))
+      fatal("failed to seek");
+    if (ftello(seek) != (e.start * ctx->blocklen))
+      fatal("seek did not move file pointer as expected");
+    ctx->phypos = e.start;
+    if (e.length)
+      //copy whole blocks
+      while (e.length--) {
+	if (fread(ctx->block, ctx->blocklen, 1, source) != 1)
+	  fatal("failed to read block");
+	if (fwrite(ctx->block, ctx->blocklen, 1, target) != 1)
+	  fatal("failed to write block");
+	ctx->logpos++; ctx->phypos++; ctx->diskcnt++;
+	progress();
+      }
+    else if (e.num) {
+      //copy partial block
+      unsigned long long int len = ctx->blocklen * e.num / e.denom;
+      memset(ctx->block, 0, ctx->blocklen);
+      // ARGH! copying a partial block breaks the abstraction
+      //    Big Surprise -- this feature exists to support MS weirdness
+      switch (mode) {
+      case MODE_EXPORT:
+	if (fread(ctx->block, len, 1, source) != 1)
+	  fatal("failed to read partial block from source");
+	if (fwrite(ctx->block, ctx->blocklen, 1, target) != 1)
+	  fatal("failed to write padded block to image stream");
+	break;
+      case MODE_IMPORT:
+	if (fread(ctx->block, ctx->blocklen, 1, source) != 1)
+	  fatal("failed to read padded block from image stream");
+	if (fwrite(ctx->block, len, 1, target) != 1)
+	  fatal("failed to write partial block to target");
+	break;
+      default:
+	fprintf(stderr,"No, we did not just reach line %d in %s.\n",
+		__LINE__, __FILE__);
+	abort(); // assertion failed
+      }
+      ctx->logpos++; ctx->phypos++; ctx->diskcnt++;
+      progress();
+    }
+  } while (!(ret<0));
+  show_progress(stderr, &p); // force showing final progress report
+  return 0;
 }
 
 static int do_export(struct keylist * args,
@@ -165,59 +264,8 @@ static int do_export(struct keylist * args,
   fwrite(ctx->block, ctx->blocklen, 1, image);
   // the header does not count as a block in the image stream
 
-  { // copy data
-    struct v1_extent e = {0};
-    int ret;
+  do_copy_internal(ctx, MODE_EXPORT, map, source, image);
 
-    void progress(void) { //update progress and maybe sync
-      src_frac = ctx->diskpos  * 1000 / ctx->blockrange;
-      tgt_frac = ctx->imagepos * 1000 / ctx->blockcount;
-
-      p.src_pct = src_frac / 10; p.src_pct_f = src_frac % 10;
-      p.tgt_pct = tgt_frac / 10; p.tgt_pct_f = tgt_frac % 10;
-
-      p.src_baton = ctx->diskcnt >> 8;
-      p.tgt_baton = ctx->imagepos >> 8;
-
-      if ((p.src_baton != p.src_baton_)||(p.tgt_baton != p.tgt_baton_)) {
-	p.src_baton_ = p.src_baton;
-	p.tgt_baton_ = p.tgt_baton;
-	show_progress(stderr, &p);
-      }
-      //      if (!((ctx->diskcnt >> 11) & 3)) fdatasync(fileno(image));
-    }
-
-    do {
-      ret = map_v1_readcell(map, &e);
-      fseeko(source, e.start * ctx->blocklen, SEEK_SET);
-      ctx->diskpos = e.start;
-      if (e.length)
-	//copy whole blocks
-	while (e.length--) {
-	  if (fread(ctx->block, ctx->blocklen, 1, source) != 1)
-	    fatal("failed to read block from source");
-#ifdef EAT_DATA
-	  ((unsigned long long int *)ctx->block)[0]=ctx->diskpos;
-#endif
-	  if (fwrite(ctx->block, ctx->blocklen, 1, image) != 1)
-	    fatal("failed to write block to image stream");
-	  ctx->diskpos++; ctx->diskcnt++; ctx->imagepos++;
-	  progress();
-	}
-      else if (e.num) {
-	//copy partial block
-	unsigned long long int len = ctx->blocklen * e.num / e.denom;
-	memset(ctx->block, 0, ctx->blocklen);
-	if (fread(ctx->block, len, 1, source) != 1)
-	  fatal("failed to read partial block from source");
-	if (fwrite(ctx->block, ctx->blocklen, 1, image) != 1)
-	  fatal("failed to write padded block to image stream");
-	ctx->diskpos++; ctx->diskcnt++; ctx->imagepos++;
-	progress();
-      }
-    } while (!(ret<0));
-    show_progress(stderr, &p); // force to show final progress
-  }
   fclose(image); fclose(source);
   return 0;
 }
@@ -287,61 +335,8 @@ static int do_import(struct keylist * args,
   }
 #endif
 
-  { // copy data
-    struct v1_extent e = {0};
-    int ret;
+  do_copy_internal(ctx, MODE_IMPORT, map, image, target);
 
-    void progress(void) { //update progress and maybe sync
-      src_frac = ctx->imagepos * 1000 / ctx->blockcount;
-      tgt_frac = ctx->diskpos  * 1000 / ctx->blockrange;
-
-      p.src_pct = src_frac / 10; p.src_pct_f = src_frac % 10;
-      p.tgt_pct = tgt_frac / 10; p.tgt_pct_f = tgt_frac % 10;
-
-      p.src_baton = ctx->diskcnt >> 8;
-      p.tgt_baton = ctx->imagepos >> 8;
-
-      if ((p.src_baton != p.src_baton_)||(p.tgt_baton != p.tgt_baton_)) {
-	p.src_baton_ = p.src_baton;
-	p.tgt_baton_ = p.tgt_baton;
-	show_progress(stderr, &p);
-      }
-      //      if (!((ctx->diskcnt >> 11) & 3)) fdatasync(fileno(target));
-    }
-
-    do {
-      ret = map_v1_readcell(map, &e);
-      if (fseeko(target, e.start * ctx->blocklen, SEEK_SET))
-	fatal("failed to seek on imaging target");
-      if (ftello(target) != (e.start * ctx->blocklen))
-	fatal("seek did not move file pointer as expected");
-      ctx->diskpos = e.start;
-      if (e.length)
-	//copy whole blocks
-	while (e.length--) {
-	  if (fread(ctx->block, ctx->blocklen, 1, image) != 1)
-	    fatal("failed to read block from image stream");
-#ifdef EAT_DATA
-	  ((unsigned long long int *)ctx->block)[1]=ctx->imagepos;
-#endif
-	  if (fwrite(ctx->block, ctx->blocklen, 1, target) != 1)
-	    fatal("failed to write block to target");
-	  ctx->imagepos++; ctx->diskpos++; ctx->diskcnt++;
-	  progress();
-	}
-      else if (e.num) {
-	//copy partial block
-	unsigned long long int len = ctx->blocklen * e.num / e.denom;
-	if (fread(ctx->block, ctx->blocklen, 1, image) != 1)
-	  fatal("failed to read padded block from image stream");
-	if (fwrite(ctx->block, len, 1, target) != 1)
-	  fatal("failed to write partial block to target");
-	ctx->imagepos++; ctx->diskpos++; ctx->diskcnt++;
-	progress();
-      }
-    } while (!(ret<0));
-    show_progress(stderr, &p); // force to show final progress
-  }
   fclose(image); fclose(target);
   return 0;
 }
