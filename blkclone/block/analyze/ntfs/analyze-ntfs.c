@@ -659,7 +659,7 @@ static int NTFS_ad_analyze(FILE * fs, FILE * out, char * ignore)
   bitmap = NTFSdrv_fopen(vol, NTFS_RECNO_BITMAP);
   if (!bitmap) fatal("could not open bitmap");
 
-  vol->info.dccount = NTFS_count_used_blocks(bitmap,vol->info.ccount);
+  vol->info.dccount = NTFS_count_used_blocks(bitmap,vol->info.ccount - 1);
 
   fprintf(out,"Type:\tNTFS\n");
 
@@ -668,10 +668,10 @@ static int NTFS_ad_analyze(FILE * fs, FILE * out, char * ignore)
 
   fprintf(out,"BlockSize:\t%lld\n",vol->info.csize);
   fprintf(out,"BlockCount:\t%lld\n",vol->info.dccount);
-  fprintf(out,"BlockRange:\t%lld\n",vol->info.ccount);
+  fprintf(out,"BlockRange:\t%lld\n",vol->info.ccount - 1);
 
   fprintf(out,"BEGIN BLOCK LIST\n");
-  emit_NTFS_extent_list(out,bitmap,vol->info.ccount);
+  emit_NTFS_extent_list(out,bitmap,vol->info.ccount - 1);
   //also catch the backup boot record
   fprintf(out,"%lld+.1/%d\n",vol->info.ccount,vol->info.spc);
   fprintf(out,"END BLOCK LIST\n");
