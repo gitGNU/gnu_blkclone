@@ -92,14 +92,17 @@ static int do_copy_internal(struct imaging_context * ctx,
 			    FILE * map, FILE * source, FILE * target);
 
 static int do_export(struct keylist * args,
-		     struct imaging_context * ctx, FILE * map);
+		     struct imaging_context * ctx,
+		     FILE * map, FILE * source, FILE * image);
 static int do_import(struct keylist * args,
-		     struct imaging_context * ctx, FILE * map);
+		     struct imaging_context * ctx,
+		     FILE * map, FILE * image, FILE * target);
 
 static struct {
   char * name;
-  int (*func)(struct keylist* args,
-	      struct imaging_context * ctx, FILE * map);
+  int (*func)(struct keylist * args,
+	      struct imaging_context * ctx,
+	      FILE * map, FILE * source, FILE * target);
 } *mode_ptr, mode_list[] = {
   {"export",do_export},
   {"import",do_import},
@@ -208,27 +211,22 @@ static int do_copy_internal(struct imaging_context * ctx,
 }
 
 static int do_export(struct keylist * args,
-		     struct imaging_context * ctx, FILE * map)
+		     struct imaging_context * ctx,
+		     FILE * map, FILE * source, FILE * image)
 {
-  FILE * image = NULL;
-  FILE * source = NULL;
-  unsigned long long int src_frac, tgt_frac; //progress in 1/10ths percent
-  struct progress p = {0};
-
   { //verify files
     struct stat stbuf_src = {0}, stbuf_tgt = {0};
 
-    if (stat(keylist_get(args,"src"),&stbuf_src) < 0)
+    if (fstat(fileno(source),&stbuf_src) < 0)
       fatal("failed to stat imaging source");
 
-    if (  (stat(keylist_get(args,"tgt"),&stbuf_tgt) < 0)
-	&&( errno != ENOENT))
+    if (fstat(fileno(image),&stbuf_tgt) < 0)
       fatal("failed to stat imaging target");
 
-    if (!(S_ISBLK(stbuf_src.st_mode) || S_ISCHR(stbuf_src.st_mode)
-	  || S_ISREG(stbuf_src.st_mode))) {
-      fprintf(stderr,
-	      "imaging source must be a device or regular file\n");
+    if (   fseeko(source, ctx->blocklen / 2, SEEK_SET)
+	||(ftello(source) != ctx->blocklen / 2)
+	||(fseeko(source, 0L, SEEK_SET))) {
+      fprintf(stderr, "imaging source must be seekable\n");
       exit(1);
     }
 
@@ -247,12 +245,6 @@ static int do_export(struct keylist * args,
     }
   }
 
-  source = fopen(keylist_get(args,"src"),"r");
-  if (!source) fatal("open imaging source");
-
-  image = fopen(keylist_get(args,"tgt"),"a");
-  if (!image) fatal("open imaging target");
-
   { //prep image stream header
     struct image_header_v1 * h = ctx->block;
     memcpy(h->sig,"BLKCLONEDATA\r\n\004\000",16);
@@ -264,35 +256,27 @@ static int do_export(struct keylist * args,
   fwrite(ctx->block, ctx->blocklen, 1, image);
   // the header does not count as a block in the image stream
 
-  do_copy_internal(ctx, MODE_EXPORT, map, source, image);
-
-  fclose(image); fclose(source);
-  return 0;
+  return do_copy_internal(ctx, MODE_EXPORT, map, source, image);
 }
 
 //TODO: implement "nuke" mode
 static int do_import(struct keylist * args,
-		     struct imaging_context * ctx, FILE * map)
+		     struct imaging_context * ctx,
+		     FILE * map, FILE * image, FILE * target)
 {
-  FILE * image = NULL;
-  FILE * target = NULL;
-  unsigned long long int src_frac, tgt_frac; //progress in 1/10ths percent
-  struct progress p = {0};
-
   { //verify files
     struct stat stbuf_src = {0}, stbuf_tgt = {0};
 
-    if (stat(keylist_get(args,"src"),&stbuf_src) < 0)
+    if (fstat(fileno(image),&stbuf_src) < 0)
       fatal("failed to stat imaging source");
 
-    if (  (stat(keylist_get(args,"tgt"),&stbuf_tgt) < 0)
-	&&( errno != ENOENT))
+    if (fstat(fileno(target),&stbuf_tgt) < 0)
       fatal("failed to stat imaging target");
 
-    if (!(S_ISBLK(stbuf_tgt.st_mode) || S_ISCHR(stbuf_tgt.st_mode)
-	  || S_ISREG(stbuf_tgt.st_mode))) {
-      fprintf(stderr,
-	      "imaging target must be a device or regular file\n");
+    if (   fseeko(target, ctx->blocklen / 2, SEEK_SET)
+	||(ftello(target) != ctx->blocklen / 2)
+	||(fseeko(target, 0L, SEEK_SET))) {
+      fprintf(stderr, "imaging target must be seekable\n");
       exit(1);
     }
 
@@ -310,12 +294,6 @@ static int do_import(struct keylist * args,
       }
     }
   }
-
-  image = fopen(keylist_get(args,"src"),"r");
-  if (!image) fatal("open imaging source");
-
-  target = fopen(keylist_get(args,"tgt"),"r+");
-  if (!target) fatal("open imaging target");
 
   //read image stream header
   fread(ctx->block, ctx->blocklen, 1, image);
@@ -335,10 +313,7 @@ static int do_import(struct keylist * args,
   }
 #endif
 
-  do_copy_internal(ctx, MODE_IMPORT, map, image, target);
-
-  fclose(image); fclose(target);
-  return 0;
+  return do_copy_internal(ctx, MODE_IMPORT, map, image, target);
 }
 
 static char usagetext[] =
@@ -362,6 +337,8 @@ SUBCALL_MAIN(main, sparsecopy, usagetext, helptext,
   struct keylist * args = NULL;
   struct keylist * map_info = NULL;
   FILE * map = NULL;
+  FILE * source = NULL;
+  FILE * target = NULL;
   struct imaging_context ctx = {0};
   int ret = 1;
 
@@ -378,13 +355,6 @@ SUBCALL_MAIN(main, sparsecopy, usagetext, helptext,
 	  &&(modecnt==1)))  // ...and exactly one mode flag
       print_usage_and_exit(usagetext);
   }
-
-#ifdef EAT_DATA
-  { char * s = keylist_get(args,"caveat");
-    if (!s || !strstr(s,"omnomnomnom"))
-      { fprintf(stderr,"This binary eats data.\n"); abort(); }
-  }
-#endif
 
   map = fopen(keylist_get(args,"idx"),"r");
   if (!map) fatal("failed to open index file");
@@ -416,12 +386,17 @@ SUBCALL_MAIN(main, sparsecopy, usagetext, helptext,
       printf(" %s : %s\n",i->key,i->value);
   }
 
+  source = fopen(keylist_get(args,"src"),"r");
+  if (!source) fatal("open imaging source");
+  target = fopen(keylist_get(args,"tgt"),"r+");
+  if (!target) fatal("open imaging target");
+
   for (mode_ptr=mode_list; mode_ptr->name; mode_ptr++)
     if (keylist_get(args,mode_ptr->name)) break;
   if (mode_ptr->name)
-    ret = (mode_ptr->func)(args, &ctx, map);
+    ret = (mode_ptr->func)(args, &ctx, map, source, target);
 
-  fclose(map);
+  fclose(map); fclose(source); fclose(target);
   free(ctx.block);
   keylist_destroy(args);
   keylist_destroy(map_info);
