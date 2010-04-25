@@ -172,6 +172,22 @@ static int do_copy_internal(struct imaging_context * ctx,
       off_t gap = (e.start * ctx->blocklen) - ftello(target);
       if (gap<0) fatal("not safe to seek backwards in zerofill mode");
       memset(ctx->block, 0, ctx->blocklen);
+      if (ftello(target) % ctx->blocklen) {
+	off_t step = ctx->blocklen - (ftello(target) % ctx->blocklen);
+	// we are continuing after having written a partial block
+	//  (this ability is untested at this time,
+	//    as no module currently can generate such a map)
+	//  (further, partial blocks are intended for use at end-of-medium,
+	//    so this should never be needed)
+	fprintf(stderr,
+		"NOTICE:  Performing zerofill after writing a partial block.\n"
+		"  (filling towards block %d; %d bytes padding needed)\n",
+		e.start, step);
+	if (fwrite(ctx->block, step, 1, target) != 1)
+	  fatal("failed to write partial zerofill block");
+	// recalculate gap
+	gap = (e.start * ctx->blocklen) - ftello(target);
+      }
       while (gap >= ctx->blocklen) {
 	if (fwrite(ctx->block, ctx->blocklen, 1, target) != 1)
 	  fatal("failed to write zerofill block");
